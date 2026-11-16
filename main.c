@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
     uint32_t entry;
     if (!elf_read(file, &mem, &entry)) {
         fprintf(stderr, "Failed to parse ELF file\n");
+        memory_free(&mem);
         fclose(file);
         return 1;
     }
@@ -36,6 +37,7 @@ int main(int argc, char *argv[]) {
     cpu_t cpu;
     if (!cpu_init(&cpu, &mem, entry)) {
         fprintf(stderr, "Failed to allocate CPU\n");
+        memory_free(&mem);
         return 1;
     }
 
@@ -49,13 +51,17 @@ int main(int argc, char *argv[]) {
     printf("\n");
     if (r == STEP_OK) {
         fprintf(stderr, "Maximum number of iterations reached\n");
+        memory_free(&mem);
         return 1;
     }
     if (r == STEP_ERROR) {
+        memory_free(&mem);
         return 1;
     }
 
-    printf("> Program returned %d\n", cpu.regs.regs.a0);
+    printf("> Program returned %d\n", cpu.regs.abi.a0);
 
-    return cpu.regs.regs.a0 & 0xFF; // truncate exit code to 8 bits like a POSIX process
+    int exit_code = cpu.regs.abi.a0 & 0xFF; // truncate exit code to 8 bits like a POSIX process
+    memory_free(&mem);
+    return exit_code;
 }

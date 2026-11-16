@@ -184,7 +184,7 @@ void test_upper_and_jumps() {
 
 void test_system_and_errors() {
     reset(0, 0x00000073); // ECALL exit
-    cpu.regs.regs.a7 = 93;
+    cpu.regs.abi.a7 = 93;
     assert(cpu_step(&cpu, &mem) == STEP_EXIT);
 
     expect_error(0, 0x00100073); // EBREAK

@@ -26,7 +26,7 @@ void memory_free(memory_t *mem)
     }
 }
 
-bool memory_read_byte(const memory_t *mem, size_t addr, uint8_t *value)
+bool memory_read_byte(const memory_t *mem, uint32_t addr, uint8_t *value)
 {
     if (addr >= mem->size) {
         return false;
@@ -35,7 +35,7 @@ bool memory_read_byte(const memory_t *mem, size_t addr, uint8_t *value)
     return true;
 }
 
-bool memory_write_byte(memory_t *mem, size_t addr, uint8_t value)
+bool memory_write_byte(memory_t *mem, uint32_t addr, uint8_t value)
 {
     if (addr >= mem->size) {
         return false;
@@ -44,36 +44,36 @@ bool memory_write_byte(memory_t *mem, size_t addr, uint8_t value)
     return true;
 }
 
-bool memory_read_half(const memory_t *mem, size_t addr, uint16_t *value)
+bool memory_read_half(const memory_t *mem, uint32_t addr, uint16_t *value)
 {
-    if (addr + 1 >= mem->size) {
+    if ((uint64_t)addr + 1 >= mem->size) {
         return false;
     }
     memcpy(value, &mem->data[addr], 2);
     return true;
 }
 
-bool memory_write_half(memory_t *mem, size_t addr, uint16_t value)
+bool memory_write_half(memory_t *mem, uint32_t addr, uint16_t value)
 {
-    if (addr + 1 >= mem->size) {
+    if ((uint64_t)addr + 1 >= mem->size) {
         return false;
     }
     memcpy(&mem->data[addr], &value, 2);
     return true;
 }
 
-bool memory_read_word(const memory_t *mem, size_t addr, uint32_t *value)
+bool memory_read_word(const memory_t *mem, uint32_t addr, uint32_t *value)
 {
-    if (addr + 3 >= mem->size) {
+    if ((uint64_t)addr + 3 >= mem->size) {
         return false;
     }
     memcpy(value, &mem->data[addr], 4);
     return true;
 }
 
-bool memory_write_word(memory_t *mem, size_t addr, uint32_t value)
+bool memory_write_word(memory_t *mem, uint32_t addr, uint32_t value)
 {
-    if (addr + 3 >= mem->size) {
+    if ((uint64_t)addr + 3 >= mem->size) {
         return false;
     }
     memcpy(&mem->data[addr], &value, 4);

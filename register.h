@@ -52,7 +52,7 @@ typedef union {
         uint32_t t4;
         uint32_t t5;
         uint32_t t6;
-    } regs;
+    } abi;
 } register_file_t;
 
 #endif // __REGISTER_H__

@@ -14,20 +14,20 @@ void test_write() {
     assert(pipe(fds) == 0);
 
     register_file_t regs = {0};
-    regs.regs.a7 = 64;
-    regs.regs.a0 = fds[1];
-    regs.regs.a1 = 10;
-    regs.regs.a2 = 6; // ends exactly at mem.size
+    regs.abi.a7 = 64;
+    regs.abi.a0 = fds[1];
+    regs.abi.a1 = 10;
+    regs.abi.a2 = 6; // ends exactly at mem.size
     assert(syscall_handle(&regs, &mem) == STEP_OK);
 
     char buf[8] = {0};
     assert(read(fds[0], buf, sizeof buf) == 6);
     assert(memcmp(buf, "hello!", 6) == 0);
 
-    regs.regs.a2 = 7; // one byte past the end
+    regs.abi.a2 = 7; // one byte past the end
     assert(syscall_handle(&regs, &mem) == STEP_ERROR);
-    regs.regs.a1 = 0xFFFFFFFF; // buf + count must not wrap
-    regs.regs.a2 = 2;
+    regs.abi.a1 = 0xFFFFFFFF; // buf + count must not wrap
+    regs.abi.a2 = 2;
     assert(syscall_handle(&regs, &mem) == STEP_ERROR);
 
     close(fds[0]);
@@ -38,9 +38,9 @@ void test_write() {
 void test_exit_and_unknown() {
     memory_t mem = {0};
     register_file_t regs = {0};
-    regs.regs.a7 = 93;
+    regs.abi.a7 = 93;
     assert(syscall_handle(&regs, &mem) == STEP_EXIT);
-    regs.regs.a7 = 12345;
+    regs.abi.a7 = 12345;
     assert(syscall_handle(&regs, &mem) == STEP_ERROR);
 }
 
