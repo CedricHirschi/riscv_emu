@@ -5,9 +5,9 @@
 
 step_t syscall_handle(register_file_t *regs, memory_t *mem)
 {
-    uint32_t syscall = regs->arr[17];
+    uint32_t syscall = regs->arr[17]; // a7
     switch (syscall) {
-        case 64: {
+        case 64: { // write(fd=a0, buf=a1, count=a2)
             uint32_t fd = regs->arr[10];
             uint32_t buf = regs->arr[11];
             uint32_t count = regs->arr[12];
@@ -21,7 +21,7 @@ step_t syscall_handle(register_file_t *regs, memory_t *mem)
             }
             return STEP_OK;
         }
-        case 93:
+        case 93: // exit(code=a0)
             return STEP_EXIT;
         default:
             fprintf(stderr, "Unknown syscall %u\n", syscall);

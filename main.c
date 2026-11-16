@@ -57,5 +57,5 @@ int main(int argc, char *argv[]) {
 
     printf("> Program returned %d\n", cpu.regs.arr[10]);
 
-    return cpu.regs.arr[10] & 0xFF;
+    return cpu.regs.arr[10] & 0xFF; // a0 exit code, truncated to 8 bits like a POSIX process
 }

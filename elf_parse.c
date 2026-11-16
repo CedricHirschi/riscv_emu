@@ -117,7 +117,7 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem)
     }
 
     for (size_t i = 0; i < fields->ehdr.phnum; i++) {
-        if (fields->phdr[i].type != 1) {
+        if (fields->phdr[i].type != 1) { // PT_LOAD
             printf("  Skipping non-loadable program header (type=%u)\n", fields->phdr[i].type);
             continue;
         }
@@ -135,6 +135,7 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem)
             return false;
         }
 
+        // Zero full memsz first so any trailing .bss (memsz > filesz) is zero-initialized
         memset(mem->data + va, 0, memsz);
         fseek(file, fields->phdr[i].offset, SEEK_SET);
         if (fread(mem->data + va, 1, filesz, file) != filesz) {

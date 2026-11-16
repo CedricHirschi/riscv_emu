@@ -56,6 +56,7 @@ uint32_t inst_get_funct7(inst_t inst) {
 }
 
 int32_t inst_get_imm(inst_t inst, inst_format_t fmt) {
+    // Shift left then arithmetic right-shift to sign-extend 12-, 13-, and 21-bit immediates
     switch (fmt) {
         case OP_I:
             return (int32_t)(inst.i.imm << 20) >> 20;

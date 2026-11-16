@@ -7,7 +7,7 @@
 #include "syscall.h"
 
 enum {
-    INS_UNDECODED = 0,
+    INS_UNDECODED = 0, // calloc'd icache starts zero-initialized
     INS_ILLEGAL,
     INS_ADD, INS_SUB, INS_SLL, INS_SLT, INS_SLTU, INS_XOR, INS_SRL, INS_SRA, INS_OR, INS_AND,
     INS_MUL, INS_MULH, INS_MULHSU, INS_MULHU, INS_DIV, INS_DIVU, INS_REM, INS_REMU,
@@ -53,6 +53,7 @@ static struct decoded decode(uint32_t word)
             break;
         case 0x13:
             d.op = I_ALU[funct3];
+            // Shift immediates encode funct7 in bits [11:5] (0x400 = SRAI); keep only the 5-bit shamt
             if (funct3 == 0x5 && (d.imm & 0xFE0) == 0x400) d.op = INS_SRAI;
             else if ((funct3 == 0x1 || funct3 == 0x5) && (d.imm & 0xFE0) != 0) d.op = INS_ILLEGAL;
             if (funct3 == 0x1 || funct3 == 0x5) d.imm &= 0x1F;
@@ -74,10 +75,12 @@ static struct decoded decode(uint32_t word)
 
 bool cpu_init(cpu_t *cpu, const memory_t *mem, uint32_t pc)
 {
+    // Round up so a trailing partial word still has an icache slot for invalidation
     *cpu = (cpu_t){ .pc = pc, .icache = calloc((mem->size + 3) / 4, sizeof(struct decoded)) };
     return cpu->icache != NULL;
 }
 
+// Invalidate first and last touched words (stores are <= 4 bytes, so at most two words)
 static void invalidate(cpu_t *cpu, uint32_t addr, uint32_t len)
 {
     cpu->icache[addr >> 2].op = INS_UNDECODED;
@@ -126,6 +129,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
         case INS_MULHSU: x[d->rd] = ((int64_t)(int32_t)a * (uint64_t)b) >> 32; break;
         case INS_MULHU:  x[d->rd] = ((uint64_t)a * (uint64_t)b) >> 32; break;
 
+        // RISC-V defines div-by-zero and INT32_MIN / -1 results instead of trapping
         case INS_DIV:  x[d->rd] = b == 0 ? 0xFFFFFFFF : ((int32_t)a == INT32_MIN && (int32_t)b == -1) ? a : (uint32_t)((int32_t)a / (int32_t)b); break;
         case INS_DIVU: x[d->rd] = b == 0 ? 0xFFFFFFFF : a / b; break;
         case INS_REM:  x[d->rd] = b == 0 ? a : ((int32_t)a == INT32_MIN && (int32_t)b == -1) ? 0 : (uint32_t)((int32_t)a % (int32_t)b); break;
@@ -178,7 +182,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
         case INS_LUI:   x[d->rd] = d->imm; break;
         case INS_AUIPC: x[d->rd] = pc + d->imm; break;
         case INS_JAL:   x[d->rd] = pc + 4; next = pc + d->imm; break;
-        case INS_JALR:  next = (a + d->imm) & ~1u; x[d->rd] = pc + 4; break;
+        case INS_JALR:  next = (a + d->imm) & ~1u; x[d->rd] = pc + 4; break; // clear bit 0 per spec; a read before rd write (rd may equal rs1)
 
         case INS_ECALL: {
             step_t r = syscall_handle(&cpu->regs, mem);
