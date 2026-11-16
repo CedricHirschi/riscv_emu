@@ -11,7 +11,9 @@ typedef struct {
     uint32_t pc;
 } cpu_t;
 
-// Returns false when execution should stop (exit, halt or error).
-bool cpu_step(cpu_t *cpu, memory_t *mem);
+typedef enum { STEP_OK, STEP_EXIT, STEP_ERROR } step_t;
+
+// Executes one instruction. Anything other than STEP_OK means stop.
+step_t cpu_step(cpu_t *cpu, memory_t *mem);
 
 #endif // __CPU_H__

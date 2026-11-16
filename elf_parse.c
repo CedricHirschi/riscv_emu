@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 
-bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
+bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem)
 {
     if (!file) {
         perror("Failed to open file");
@@ -116,16 +116,6 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
         return false;
     }
 
-    fields->programs = malloc(fields->ehdr.phnum * sizeof(*fields->programs));
-    if (!fields->programs) {
-        fprintf(stderr, "elf_read: failed to allocate memory for programs array\n");
-        free(fields->phdr);
-        free(fields->shdr);
-        return false;
-    }
-
-    size_t minimum = mem->size;
-
     for (size_t i = 0; i < fields->ehdr.phnum; i++) {
         if (fields->phdr[i].type != 1) {
             printf("  Skipping non-loadable program header (type=%u)\n", fields->phdr[i].type);
@@ -135,10 +125,6 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
         uint32_t va = fields->phdr[i].vaddr;
         uint32_t filesz = fields->phdr[i].filesz;
         uint32_t memsz = fields->phdr[i].memsz;
-
-        if (va < minimum) {
-            minimum = va;
-        }
 
         if (filesz > memsz) {
             fprintf(stderr, "elf_read: invalid program header %zu (filesz=%u, memsz=%u)\n", i, filesz, memsz);
@@ -155,10 +141,6 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
             fprintf(stderr, "elf_read: failed to read program section %zu\n", i);
             return false;
         }
-    }
-
-    if (offset) {
-        *offset = minimum;
     }
 
     return true;

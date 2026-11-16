@@ -9,7 +9,8 @@ typedef enum {
     OP_S,
     OP_B,
     OP_U,
-    OP_J
+    OP_J,
+    OP_INVALID
 } inst_format_t;
 
 typedef struct {

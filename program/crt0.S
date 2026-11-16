@@ -3,4 +3,5 @@
 _start:
     lla sp, __stack_top
     call main
-1:  j 1b
+    li a7, 93 # exit(a0 = main's return value)
+    ecall

@@ -21,7 +21,7 @@ inst_format_t inst_get_format(inst_t inst) {
 
         case 0x73: return OP_I;
 
-        default: return OP_R; // Default to R-type for unknown opcodes
+        default: return OP_INVALID;
     }
 }
 

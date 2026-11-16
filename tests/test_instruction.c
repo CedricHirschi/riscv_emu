@@ -70,6 +70,9 @@ void test_inst_get_format() {
 
     inst.val = 0b1110011;
     assert(inst_get_format(inst) == OP_I);
+
+    inst.val = 0b1111111;
+    assert(inst_get_format(inst) == OP_INVALID);
 }
 
 void test_inst_get_rd() {

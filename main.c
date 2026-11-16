@@ -1,10 +1,6 @@
 #include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 
 #include "elf_parse.h"
-#include "instruction.h"
-#include "register.h"
 #include "memory.h"
 #include "cpu.h"
 
@@ -30,8 +26,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     elf_fields_t fields;
-    size_t offset;
-    if (!elf_read(file, &fields, &mem, &offset)) {
+    if (!elf_read(file, &fields, &mem)) {
         fprintf(stderr, "Failed to parse ELF file\n");
         fclose(file);
         return 1;
@@ -43,24 +38,21 @@ int main(int argc, char *argv[]) {
 
     printf("\n");
 
-    size_t i = 0;
-    while (i++ < MAX_ITER) {
-        if (!cpu_step(&cpu, &mem)) {
-            break;
-        }
+    step_t r = STEP_OK;
+    for (size_t i = 0; i < MAX_ITER && r == STEP_OK; i++) {
+        r = cpu_step(&cpu, &mem);
     }
 
     printf("\n");
-    if (i == MAX_ITER + 1) {
+    if (r == STEP_OK) {
         fprintf(stderr, "Maximum number of iterations reached\n");
+        return 1;
     }
-    // printf("Number of iterations: %zu\n", i);
-
-    // for (int i = 0; i < 32; i++) {
-    //     printf("x%02d: %d\n", i, cpu.regs.arr[i]);
-    // }
+    if (r == STEP_ERROR) {
+        return 1;
+    }
 
     printf("> Program returned %d\n", cpu.regs.arr[10]);
 
-    return 0;
+    return cpu.regs.arr[10] & 0xFF; // like a real process: only the low 8 bits reach the shell
 }

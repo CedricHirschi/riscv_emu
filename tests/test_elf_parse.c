@@ -15,14 +15,12 @@ int main() {
     memory_t mem;
     assert(memory_init(&mem, 256));
     elf_fields_t fields;
-    size_t offset;
-    if (!elf_read(file, &fields, &mem, &offset)) {
+    if (!elf_read(file, &fields, &mem)) {
         fprintf(stderr, "Failed to parse ELF file\n");
         fclose(file);
         return 1;
     }
 
-    assert(offset == 0);
     // Something was loaded at the entry point
     uint32_t first;
     assert(memory_read_word(&mem, fields.ehdr.entry, &first));

@@ -58,17 +58,8 @@ typedef struct {
         uint32_t addralign;
         uint32_t entsize;
     } *shdr;
-
-    uint8_t **programs;
-    uint8_t **sections;
 } elf_fields_t;
 
-typedef struct {
-    elf_fields_t fields;
-
-    uint32_t entry;
-} elf_t;
-
-bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset);
+bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem);
 
 #endif // __ELF_H__
