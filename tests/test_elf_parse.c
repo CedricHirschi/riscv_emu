@@ -14,8 +14,8 @@ int main() {
     
     memory_t mem;
     assert(memory_init(&mem, 256));
-    elf_fields_t fields;
-    if (!elf_read(file, &fields, &mem)) {
+    uint32_t entry;
+    if (!elf_read(file, &mem, &entry)) {
         fprintf(stderr, "Failed to parse ELF file\n");
         fclose(file);
         return 1;
@@ -23,7 +23,7 @@ int main() {
 
     // Something was loaded at the entry point
     uint32_t first;
-    assert(memory_read_word(&mem, fields.ehdr.entry, &first));
+    assert(memory_read_word(&mem, entry, &first));
     assert(first != 0);
 
     memory_free(&mem);

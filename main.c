@@ -24,8 +24,8 @@ int main(int argc, char *argv[]) {
         fclose(file);
         return 1;
     }
-    elf_fields_t fields;
-    if (!elf_read(file, &fields, &mem)) {
+    uint32_t entry;
+    if (!elf_read(file, &mem, &entry)) {
         fprintf(stderr, "Failed to parse ELF file\n");
         fclose(file);
         return 1;
@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
     fclose(file);
 
     cpu_t cpu;
-    if (!cpu_init(&cpu, &mem, fields.ehdr.entry)) {
+    if (!cpu_init(&cpu, &mem, entry)) {
         fprintf(stderr, "Failed to allocate CPU\n");
         return 1;
     }
