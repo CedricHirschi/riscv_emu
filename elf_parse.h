@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "memory.h"
+
 typedef struct {
     struct {
         uint8_t magic[4];
@@ -67,6 +69,6 @@ typedef struct {
     uint32_t entry;
 } elf_t;
 
-bool elf_read(FILE *file, elf_fields_t *fields, uint8_t *mem, size_t mem_size, size_t *offset, size_t *read);
+bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset);
 
 #endif // __ELF_H__

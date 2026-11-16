@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 
-bool elf_read(FILE *file, elf_fields_t *fields, uint8_t *mem, size_t mem_size, size_t *offset, size_t *read)
+bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
 {
     if (!file) {
         perror("Failed to open file");
@@ -124,7 +124,7 @@ bool elf_read(FILE *file, elf_fields_t *fields, uint8_t *mem, size_t mem_size, s
         return false;
     }
 
-    size_t minimum = mem_size;
+    size_t minimum = mem->size;
     size_t maximum = 0;
 
     for (size_t i = 0; i < fields->ehdr.phnum; i++) {
@@ -148,14 +148,14 @@ bool elf_read(FILE *file, elf_fields_t *fields, uint8_t *mem, size_t mem_size, s
             fprintf(stderr, "elf_read: invalid program header %zu (filesz=%u, memsz=%u)\n", i, filesz, memsz);
             return false;
         }
-        if ((uint64_t)va + memsz > mem_size) {
-            fprintf(stderr, "elf_read: program section %zu exceeds memory bounds (vaddr=%u, memsz=%u, mem_size=%zu)\n", i, va, memsz, mem_size);
+        if ((uint64_t)va + memsz > mem->size) {
+            fprintf(stderr, "elf_read: program section %zu exceeds memory bounds (vaddr=%u, memsz=%u, mem_size=%zu)\n", i, va, memsz, mem->size);
             return false;
         }
 
-        memset(mem + va, 0, memsz);
+        memset(mem->data + va, 0, memsz);
         fseek(file, fields->phdr[i].offset, SEEK_SET);
-        if (fread(mem + va, 1, filesz, file) != filesz) {
+        if (fread(mem->data + va, 1, filesz, file) != filesz) {
             fprintf(stderr, "elf_read: failed to read program section %zu\n", i);
             return false;
         }
@@ -164,9 +164,7 @@ bool elf_read(FILE *file, elf_fields_t *fields, uint8_t *mem, size_t mem_size, s
     if (offset) {
         *offset = minimum;
     }
-    if (read) {
-        *read = maximum - minimum;
-    }
+    mem->used = maximum - minimum;
 
     return true;
 }
