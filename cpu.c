@@ -128,7 +128,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
             uint32_t rd = inst_get_rd(inst);
             uint32_t rs1 = inst_get_rs1(inst);
             uint32_t funct3 = inst_get_funct3(inst);
-            int32_t imm = inst_get_imm(inst);
+            int32_t imm = inst_get_imm(inst, fmt);
 
             if (opcode == 0x13) {
                 switch (funct3) {
@@ -237,7 +237,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
             uint32_t rs1 = inst_get_rs1(inst);
             uint32_t rs2 = inst_get_rs2(inst);
             uint32_t funct3 = inst_get_funct3(inst);
-            int32_t imm = inst_get_imm(inst);
+            int32_t imm = inst_get_imm(inst, fmt);
 
             switch (funct3) {
                 case 0x0: {
@@ -268,7 +268,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
             uint32_t rs1 = inst_get_rs1(inst);
             uint32_t rs2 = inst_get_rs2(inst);
             uint32_t funct3 = inst_get_funct3(inst);
-            int32_t imm = inst_get_imm(inst);
+            int32_t imm = inst_get_imm(inst, fmt);
 
             switch (funct3) {
                 case 0x0: {
@@ -311,7 +311,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
         case OP_U: {
             uint32_t opcode = inst_get_opcode(inst);
             uint32_t rd = inst_get_rd(inst);
-            int32_t imm = inst_get_imm(inst);
+            int32_t imm = inst_get_imm(inst, fmt);
 
             switch (opcode) {
                 case 0x37: {
@@ -328,7 +328,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
         } break;
         case OP_J: {
             uint32_t rd = inst_get_rd(inst);
-            int32_t imm = inst_get_imm(inst);
+            int32_t imm = inst_get_imm(inst, fmt);
 
             regs->arr[rd] = *pc + 4;
             *pc += imm - 4;

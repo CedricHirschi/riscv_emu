@@ -1,6 +1,9 @@
 #include "memory.h"
 
 #include <stdlib.h>
+#include <string.h>
+
+_Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "host must be little-endian");
 
 bool memory_init(memory_t *mem, size_t size)
 {
@@ -46,7 +49,7 @@ bool memory_read_half(const memory_t *mem, size_t addr, uint16_t *value)
     if (addr + 1 >= mem->size) {
         return false;
     }
-    *value = mem->data[addr] | (mem->data[addr + 1] << 8);
+    memcpy(value, &mem->data[addr], 2);
     return true;
 }
 
@@ -55,8 +58,7 @@ bool memory_write_half(memory_t *mem, size_t addr, uint16_t value)
     if (addr + 1 >= mem->size) {
         return false;
     }
-    mem->data[addr] = value & 0xFF;
-    mem->data[addr + 1] = (value >> 8) & 0xFF;
+    memcpy(&mem->data[addr], &value, 2);
     return true;
 }
 
@@ -65,7 +67,7 @@ bool memory_read_word(const memory_t *mem, size_t addr, uint32_t *value)
     if (addr + 3 >= mem->size) {
         return false;
     }
-    *value = mem->data[addr] | (mem->data[addr + 1] << 8) | (mem->data[addr + 2] << 16) | (mem->data[addr + 3] << 24);
+    memcpy(value, &mem->data[addr], 4);
     return true;
 }
 
@@ -74,9 +76,6 @@ bool memory_write_word(memory_t *mem, size_t addr, uint32_t value)
     if (addr + 3 >= mem->size) {
         return false;
     }
-    mem->data[addr] = value & 0xFF;
-    mem->data[addr + 1] = (value >> 8) & 0xFF;
-    mem->data[addr + 2] = (value >> 16) & 0xFF;
-    mem->data[addr + 3] = (value >> 24) & 0xFF;
+    memcpy(&mem->data[addr], &value, 4);
     return true;
 }

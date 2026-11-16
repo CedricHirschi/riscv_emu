@@ -215,13 +215,13 @@ void test_inst_get_imm() {
     inst.i.opcode = 0b0010011;
     for (int32_t imm = -2048; imm < 2048; imm++) {
         inst.i.imm = imm & 0xFFF;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.i.opcode = 0b0000011;
     for (int32_t imm = -2048; imm < 2048; imm++) {
         inst.i.imm = imm & 0xFFF;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.s.opcode = 0b0100011;
@@ -230,7 +230,7 @@ void test_inst_get_imm() {
         uint32_t imm_11_5 = (imm >> 5) & 0b1111111;
         inst.s.imm_4_0 = imm_4_0;
         inst.s.imm_11_5 = imm_11_5;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.b.opcode = 0b1100011;
@@ -243,7 +243,7 @@ void test_inst_get_imm() {
         inst.b.imm_10_5 = imm_10_5;
         inst.b.imm_4_1 = imm_4_1;
         inst.b.imm_11 = imm_11;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.j.opcode = 0b1101111;
@@ -256,32 +256,32 @@ void test_inst_get_imm() {
         inst.j.imm_10_1 = imm_10_1;
         inst.j.imm_11 = imm_11;
         inst.j.imm_19_12 = imm_19_12;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.i.opcode = 0b1100111;
     for (int32_t imm = -2048; imm < 2048; imm++) {
         inst.i.imm = imm & 0xFFF;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.u.opcode = 0b0110111;
     for (int32_t imm = -0x80000000; imm < 0x7FF000; imm += 0x1000) {
         int32_t imm_31_12 = (imm >> 12) & 0xFFFFF;
         inst.u.imm_31_12 = imm_31_12;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.u.opcode = 0b0010111;
     for (int32_t imm = -0x80000000; imm < 0x7FF000; imm += 0x1000) {
         inst.u.imm_31_12 = (imm >> 12) & 0xFFFFF;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 
     inst.i.opcode = 0b1110011;
     for (int32_t imm = -2048; imm < 2048; imm++) {
         inst.i.imm = imm;
-        assert(inst_get_imm(inst) == imm);
+        assert(inst_get_imm(inst, inst_get_format(inst)) == imm);
     }
 }
 

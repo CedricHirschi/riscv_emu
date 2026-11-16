@@ -83,6 +83,6 @@ uint32_t inst_get_funct3(inst_t inst);
 uint32_t inst_get_rs1(inst_t inst);
 uint32_t inst_get_rs2(inst_t inst);
 uint32_t inst_get_funct7(inst_t inst);
-int32_t inst_get_imm(inst_t inst);
+int32_t inst_get_imm(inst_t inst, inst_format_t fmt);
 
 #endif // __INSTRUCTION_H__

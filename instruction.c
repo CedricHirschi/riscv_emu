@@ -55,8 +55,8 @@ uint32_t inst_get_funct7(inst_t inst) {
     return (inst.val >> 25) & 0x7f;
 }
 
-int32_t inst_get_imm(inst_t inst) {
-    switch (inst_get_format(inst)) {
+int32_t inst_get_imm(inst_t inst, inst_format_t fmt) {
+    switch (fmt) {
         case OP_I:
             return (int32_t)(inst.i.imm << 20) >> 20;
         case OP_S:
