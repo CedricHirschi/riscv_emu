@@ -8,7 +8,6 @@
 #define MAX_ITER 1000000000
 
 int main(int argc, char *argv[]) {
-    // Open and read ELF file specified as the first command-line argument
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <elf_file>\n", argv[0]);
         return 1;
@@ -58,5 +57,5 @@ int main(int argc, char *argv[]) {
 
     printf("> Program returned %d\n", cpu.regs.arr[10]);
 
-    return cpu.regs.arr[10] & 0xFF; // like a real process: only the low 8 bits reach the shell
+    return cpu.regs.arr[10] & 0xFF;
 }

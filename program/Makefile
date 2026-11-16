@@ -13,7 +13,7 @@ LDFLAGS := -nostdlib \
 
 CFLAGS_NATIVE := -Os -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror
 
-all: main.elf main.dump main_native main_native.dump
+all: main.elf main.dump
 
 main.elf: main.c lib/print.c main.ld crt0.S
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter-out main.ld,$^) -Ilib
@@ -21,11 +21,5 @@ main.elf: main.c lib/print.c main.ld crt0.S
 main.dump: main.elf
 	$(OBJDUMP) --visualize-jumps -D -s $< > $@
 
-main_native: main_native.c
-	cc $(CFLAGS_NATIVE) -o $@ $<
-
-main_native.dump: main_native
-	objdump -D -s $< > $@
-
 clean:
-	rm -f main.elf main.dump main_native main_native.dump
+	rm -f main.elf main.dump

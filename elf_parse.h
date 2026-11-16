@@ -16,7 +16,7 @@ typedef struct {
         uint8_t version;
         uint8_t osabi;
         uint8_t abiversion;
-        uint8_t pad[7]; // Padding to make ident 16 bytes
+        uint8_t pad[7];
     } ident;
 
     struct {

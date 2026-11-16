@@ -3,7 +3,6 @@
 
 #include "cpu.h"
 
-// Handles an ECALL (number in a7, args in a0..a2).
 step_t syscall_handle(register_file_t *regs, memory_t *mem);
 
 #endif // __SYSCALL_H__
