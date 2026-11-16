@@ -1,9 +1,9 @@
 #include "cpu.h"
 
 #include <stdio.h>
-#include <unistd.h>
 
 #include "instruction.h"
+#include "syscall.h"
 
 bool cpu_step(cpu_t *cpu, memory_t *mem)
 {
@@ -268,28 +268,9 @@ bool cpu_step(cpu_t *cpu, memory_t *mem)
             } else if (opcode == 0x73) {
                 if (imm == 0) {
                     // printf("      ECALL instruction\n");
-                    uint32_t syscall = regs->arr[17]; // a7 register holds the syscall number
-                    switch (syscall) {
-                        case 64: // write a2 bytes from memory address a1 to file descriptor a0
-                            {
-                                uint32_t fd = regs->arr[10]; // a0
-                                uint32_t buf = regs->arr[11]; // a1
-                                uint32_t count = regs->arr[12]; // a2
-                                if ((uint64_t)buf + count > mem->size) {
-                                    fprintf(stderr, "write syscall out of bounds\n");
-                                    return false;
-                                }
-                                ssize_t written = write(fd, &mem->data[buf], count);
-                                if (written < 0) {
-                                    perror("write failed");
-                                    return false;
-                                }
-                            }
-                            break;
-                        case 93: // exit, code stays in a0
-                            return false;
+                    if (!syscall_handle(regs, mem)) {
+                        return false;
                     }
-                    
                 } else if (imm == 1) {
                     // printf("      EBREAK instruction\n");
                     fprintf(stderr, "EBREAK encountered\n");
