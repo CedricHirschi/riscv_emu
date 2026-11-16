@@ -34,7 +34,11 @@ int main(int argc, char *argv[]) {
 
     fclose(file);
 
-    cpu_t cpu = { .pc = fields.ehdr.entry };
+    cpu_t cpu;
+    if (!cpu_init(&cpu, &mem, fields.ehdr.entry)) {
+        fprintf(stderr, "Failed to allocate CPU\n");
+        return 1;
+    }
 
     printf("\n");
 
