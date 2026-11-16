@@ -33,18 +33,17 @@ static const uint8_t BRANCH[8]  = { INS_BEQ, INS_BNE, INS_ILLEGAL, INS_ILLEGAL, 
 
 static struct decoded decode(uint32_t word)
 {
-    inst_t inst = { .val = word };
-    uint32_t funct3 = inst_get_funct3(inst);
-    uint32_t funct7 = inst_get_funct7(inst);
+    uint32_t funct3 = inst_get_funct3(word);
+    uint32_t funct7 = inst_get_funct7(word);
     struct decoded d = {
         .op = INS_ILLEGAL,
-        .rd = inst_get_rd(inst),
-        .rs1 = inst_get_rs1(inst),
-        .rs2 = inst_get_rs2(inst),
-        .imm = inst_get_imm(inst, inst_get_format(inst)),
+        .rd = inst_get_rd(word),
+        .rs1 = inst_get_rs1(word),
+        .rs2 = inst_get_rs2(word),
+        .imm = inst_get_imm(word, inst_get_format(word)),
     };
 
-    switch (inst_get_opcode(inst)) {
+    switch (inst_get_opcode(word)) {
         case 0x33:
             if (funct7 == 0x00) d.op = R_BASE[funct3];
             else if (funct7 == 0x01) d.op = R_MUL[funct3];
