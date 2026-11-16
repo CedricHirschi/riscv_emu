@@ -55,7 +55,7 @@ static struct decoded decode(uint32_t word)
         case 0x13:
             d.op = I_ALU[funct3];
             if (funct3 == 0x5 && (d.imm & 0xFE0) == 0x400) d.op = INS_SRAI;
-            else if (funct3 == 0x5 && (d.imm & 0xFE0) != 0) d.op = INS_ILLEGAL;
+            else if ((funct3 == 0x1 || funct3 == 0x5) && (d.imm & 0xFE0) != 0) d.op = INS_ILLEGAL;
             if (funct3 == 0x1 || funct3 == 0x5) d.imm &= 0x1F; // shift amount only
             break;
         case 0x03: d.op = LOADS[funct3]; break;

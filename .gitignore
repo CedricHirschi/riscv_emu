@@ -1,5 +1,6 @@
 *.o
 *.elf
+!tests/*.elf
 *.dump
 /main
 program/main_native

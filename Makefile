@@ -12,7 +12,7 @@ all: run_main
 run_tests: $(test_exes)
 	@for test in $(test_exes); do \
 		echo "Running $$test..."; \
-		./$$test; \
+		./$$test || exit 1; \
 	done
 
 run_main: main program/main.elf
