@@ -9,7 +9,6 @@
 typedef struct {
     uint8_t *data;
     size_t size;
-    size_t used;
 } memory_t;
 
 bool memory_init(memory_t *mem, size_t size);

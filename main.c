@@ -39,16 +39,13 @@ int main(int argc, char *argv[]) {
 
     fclose(file);
 
-    register_file_t regs;
-    memset(&regs, 0, sizeof(regs));
-
-    uint32_t pc = fields.ehdr.entry; // Program counter in bytes
+    cpu_t cpu = { .pc = fields.ehdr.entry };
 
     printf("\n");
 
     size_t i = 0;
     while (i++ < MAX_ITER) {
-        if (!cpu_step(&mem, &regs, &pc)) {
+        if (!cpu_step(&cpu, &mem)) {
             break;
         }
     }
@@ -60,10 +57,10 @@ int main(int argc, char *argv[]) {
     // printf("Number of iterations: %zu\n", i);
 
     // for (int i = 0; i < 32; i++) {
-    //     printf("x%02d: %d\n", i, regs.arr[i]);
+    //     printf("x%02d: %d\n", i, cpu.regs.arr[i]);
     // }
 
-    printf("> Program returned %d\n", regs.arr[10]);
+    printf("> Program returned %d\n", cpu.regs.arr[10]);
 
     return 0;
 }

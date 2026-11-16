@@ -12,20 +12,23 @@ int main() {
         return 1;
     }
     
-    uint8_t mem[256];
+    memory_t mem;
+    assert(memory_init(&mem, 256));
     elf_fields_t fields;
     size_t offset;
-    size_t read;
-    if (!elf_read(file, &fields, mem, sizeof(mem), &offset, &read)) {
+    if (!elf_read(file, &fields, &mem, &offset)) {
         fprintf(stderr, "Failed to parse ELF file\n");
         fclose(file);
         return 1;
     }
 
     assert(offset == 0);
-    assert(read > 0);
-    assert(read % 4 == 0);
+    // Something was loaded at the entry point
+    uint32_t first;
+    assert(memory_read_word(&mem, fields.ehdr.entry, &first));
+    assert(first != 0);
 
+    memory_free(&mem);
     fclose(file);
     return 0;
 }

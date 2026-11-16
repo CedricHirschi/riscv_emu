@@ -5,12 +5,10 @@
 
 #include "instruction.h"
 
-bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
+bool cpu_step(cpu_t *cpu, memory_t *mem)
 {
-    if (*pc >= mem->used) {
-        fprintf(stderr, "Program counter out of bounds\n");
-        return false;
-    }
+    register_file_t *regs = &cpu->regs;
+    uint32_t *pc = &cpu->pc;
 
     uint32_t inst_word = 0;
     bool ok = memory_read_word(mem, *pc, &inst_word);
@@ -35,7 +33,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
     //     case OP_B: printf("  B-type instruction\n"); break;
     //     case OP_U: printf("  U-type instruction\n"); break;
     //     case OP_J: printf("  J-type instruction\n"); break;
-    //     default: printf("  Unknown instruction format\n"); return 1;
+    //     default: printf("  Unknown instruction format\n"); return false;
     // }
 
     switch (fmt) {
@@ -60,7 +58,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = (uint64_t)(regs->arr[rs1] * regs->arr[rs2]) & 0xFFFFFFFF;
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x1: {
@@ -72,7 +70,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = ((int64_t)(int32_t)regs->arr[rs1] * (int64_t)(int32_t)regs->arr[rs2]) >> 32;
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x2: {
@@ -84,7 +82,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = ((int64_t)(int32_t)regs->arr[rs1] * (uint64_t)regs->arr[rs2]) >> 32;
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x3: {
@@ -96,7 +94,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = ((uint64_t)regs->arr[rs1] * (uint64_t)regs->arr[rs2]) >> 32;
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x4: {
@@ -110,7 +108,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = b == 0 ? 0xFFFFFFFF : (a == INT32_MIN && b == -1) ? (uint32_t)INT32_MIN : (uint32_t)(a / b);
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x5: {
@@ -125,7 +123,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = regs->arr[rs2] == 0 ? 0xFFFFFFFF : regs->arr[rs1] / regs->arr[rs2];
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x6: {
@@ -138,7 +136,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = b == 0 ? (uint32_t)a : (a == INT32_MIN && b == -1) ? 0 : (uint32_t)(a % b);
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x7: {
@@ -150,12 +148,12 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         regs->arr[rd] = regs->arr[rs2] == 0 ? regs->arr[rs1] : regs->arr[rs1] % regs->arr[rs2];
                     } else {
                         fprintf(stderr, "      Unknown R-type instruction\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 default: {
                     fprintf(stderr, "      Unknown R-type instruction\n");
-                    return 1;
+                    return false;
                 } break;
             }
         } break;
@@ -198,7 +196,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                             regs->arr[rd] = ((int32_t)regs->arr[rs1]) >> (imm & 0x1F);
                         } else {
                             fprintf(stderr, "      Unknown I-type instruction\n");
-                            return 1;
+                            return false;
                         }
                     } break;
                     case 0x2: {
@@ -217,7 +215,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         uint8_t byte_val;
                         if (!memory_read_byte(mem, regs->arr[rs1] + imm, &byte_val)) {
                             fprintf(stderr, "Memory read failed\n");
-                            return 1;
+                            return false;
                         }
                         regs->arr[rd] = (int8_t)byte_val;
                     } break;
@@ -226,7 +224,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         uint16_t half_val;
                         if (!memory_read_half(mem, regs->arr[rs1] + imm, &half_val)) {
                             fprintf(stderr, "Memory read failed\n");
-                            return 1;
+                            return false;
                         }
                         regs->arr[rd] = (int16_t)half_val;
                     } break;
@@ -235,7 +233,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         uint32_t word_val;
                         if (!memory_read_word(mem, regs->arr[rs1] + imm, &word_val)) {
                             fprintf(stderr, "Memory read failed\n");
-                            return 1;
+                            return false;
                         }
                         regs->arr[rd] = word_val;
                     } break;
@@ -244,7 +242,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         uint8_t byte_val_u;
                         if (!memory_read_byte(mem, regs->arr[rs1] + imm, &byte_val_u)) {
                             fprintf(stderr, "Memory read failed\n");
-                            return 1;
+                            return false;
                         }
                         regs->arr[rd] = byte_val_u;
                     } break;
@@ -253,13 +251,13 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                         uint16_t half_val_u;
                         if (!memory_read_half(mem, regs->arr[rs1] + imm, &half_val_u)) {
                             fprintf(stderr, "Memory read failed\n");
-                            return 1;
+                            return false;
                         }
                         regs->arr[rd] = half_val_u;
                     } break;
                     default: {
                         fprintf(stderr, "Unknown load instruction\n");
-                        return 1;
+                        return false;
                     } break;
                 }
             } else if (opcode == 0x67) {
@@ -277,32 +275,32 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                                 uint32_t fd = regs->arr[10]; // a0
                                 uint32_t buf = regs->arr[11]; // a1
                                 uint32_t count = regs->arr[12]; // a2
+                                if ((uint64_t)buf + count > mem->size) {
+                                    fprintf(stderr, "write syscall out of bounds\n");
+                                    return false;
+                                }
                                 ssize_t written = write(fd, &mem->data[buf], count);
                                 if (written < 0) {
                                     perror("write failed");
-                                    return 1;
+                                    return false;
                                 }
                             }
                             break;
-                        case 93: // exit
-                            {
-                                uint32_t exit_code = regs->arr[10]; // a0
-                                return exit_code;
-                            }
-                            break;
+                        case 93: // exit, code stays in a0
+                            return false;
                     }
                     
                 } else if (imm == 1) {
                     // printf("      EBREAK instruction\n");
                     fprintf(stderr, "EBREAK encountered\n");
-                    return 1;
+                    return false;
                 } else {
                     fprintf(stderr, "Unknown SYSTEM instruction\n");
-                    return 1;
+                    return false;
                 }
             } else {
                 fprintf(stderr, "Unknown I-type instruction\n");
-                return 1;
+                return false;
             }
         } break;
         case OP_S: {
@@ -317,26 +315,26 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                     // printf("      SB instruction\n");
                     if (!memory_write_byte(mem, regs->arr[rs1] + imm, regs->arr[rs2] & 0xFF)) {
                         fprintf(stderr, "Memory write failed\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x1: {
                     // printf("      SH instruction\n");
                     if (!memory_write_half(mem, regs->arr[rs1] + imm, regs->arr[rs2] & 0xFFFF)) {
                         fprintf(stderr, "Memory write failed\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 case 0x2: {
                     // printf("      SW instruction\n");
                     if (!memory_write_word(mem, regs->arr[rs1] + imm, regs->arr[rs2])) {
                         fprintf(stderr, "Memory write failed\n");
-                        return 1;
+                        return false;
                     }
                 } break;
                 default: {
                     fprintf(stderr, "Unknown store instruction\n");
-                    return 1;
+                    return false;
                 } break;
             }
         } break;
@@ -386,7 +384,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                 } break;
                 default: {
                     fprintf(stderr, "      Unknown B-type instruction\n");
-                    return 1;
+                    return false;
                 }
             }
 
@@ -408,7 +406,7 @@ bool cpu_step(memory_t *mem, register_file_t *regs, uint32_t *pc)
                 } break;
                 default: {
                     fprintf(stderr, "      Unknown U-type instruction\n");
-                    return 1;
+                    return false;
                 }
             }
         } break;

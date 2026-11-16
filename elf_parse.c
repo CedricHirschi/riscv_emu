@@ -125,7 +125,6 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
     }
 
     size_t minimum = mem->size;
-    size_t maximum = 0;
 
     for (size_t i = 0; i < fields->ehdr.phnum; i++) {
         if (fields->phdr[i].type != 1) {
@@ -139,9 +138,6 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
 
         if (va < minimum) {
             minimum = va;
-        }
-        if (va + memsz > maximum) {
-            maximum = va + memsz;
         }
 
         if (filesz > memsz) {
@@ -164,7 +160,6 @@ bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem, size_t *offset)
     if (offset) {
         *offset = minimum;
     }
-    mem->used = maximum - minimum;
 
     return true;
 }

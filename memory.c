@@ -10,7 +10,6 @@ bool memory_init(memory_t *mem, size_t size)
     }
 
     mem->size = size;
-    mem->used = 0;
 
     return true;
 }
@@ -21,7 +20,6 @@ void memory_free(memory_t *mem)
         free(mem->data);
         mem->data = NULL;
         mem->size = 0;
-        mem->used = 0;
     }
 }
 
