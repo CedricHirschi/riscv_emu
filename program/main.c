@@ -3,7 +3,7 @@
 #include "lib/print.h"
 
 #ifndef FIB_N
-#define FIB_N 30
+#define FIB_N 35
 #endif
 
 static uint32_t fib(uint32_t n)
