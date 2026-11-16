@@ -1,13 +1,16 @@
-sources := $(wildcard ./*.c)
-sources_no_main := $(filter-out ./main.c, $(sources))
-objects := $(sources_no_main:.c=.o)
+sources := $(wildcard *.c)
+objects := $(patsubst %.c,%.o,$(filter-out main.c,$(sources)))
 
 tests := $(wildcard tests/*.c)
 test_exes := $(tests:.c=)
+deps := $(objects:.o=.d) $(test_exes:=.d) main.d
 
-CFLAGS := -O3 -Wall -Wextra -Werror -flto
+CFLAGS := -O3 -Wall -Wextra -Werror -flto -MMD -MP -I.
 
 all: run_main
+
+run_main: main program/main.elf
+	./main program/main.elf
 
 run_tests: $(test_exes)
 	@for test in $(test_exes); do \
@@ -15,24 +18,21 @@ run_tests: $(test_exes)
 		./$$test || exit 1; \
 	done
 
-run_main: main program/main.elf
-	./main program/main.elf
-
 program/main.elf:
 	$(MAKE) --no-print-directory -C program
 
-.PHONY: program/main.elf
-
 main: main.c $(objects)
-	$(CC) $(CFLAGS) $< $(objects) -o $@ -I. -Itests
+	$(CC) $(CFLAGS) $< $(objects) -o $@
 
 $(test_exes): %: %.c $(objects)
-	$(CC) $(CFLAGS) $< $(objects) -o $@ -I. -Itests
+	$(CC) $(CFLAGS) $< $(objects) -o $@
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@ -I.
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(test_exes) $(objects) main
+	rm -f $(test_exes) $(objects) $(deps) main
 
-.PHONY: all clean run_tests run_main
+-include $(deps)
+
+.PHONY: all clean run_tests run_main program/main.elf
