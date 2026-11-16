@@ -1,10 +1,24 @@
+/**
+ * @file register.h
+ * @brief RISC-V 32-entry general-purpose register file definition.
+ *
+ */
+
 #ifndef __REGISTER_H__
 #define __REGISTER_H__
 
 #include <stdint.h>
 
+/**
+ * @brief General-purpose register file accessible as an array or named fields (x0..x31).
+ *
+ */
 typedef union {
     uint32_t arr[32];
+    /**
+     * @brief Named 32-bit general-purpose registers x0 through x31.
+     *
+     */
     struct {
         uint32_t x0;
         uint32_t x1;

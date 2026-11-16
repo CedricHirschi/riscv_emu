@@ -1,3 +1,9 @@
+/**
+ * @file elf_parse.h
+ * @brief 32-bit RISC-V ELF header parsing and segment loading into guest memory.
+ *
+ */
+
 #ifndef __ELF_H__
 #define __ELF_H__
 
@@ -8,7 +14,15 @@
 
 #include "memory.h"
 
+/**
+ * @brief Parsed 32-bit ELF identification, file header, program headers, and section headers.
+ *
+ */
 typedef struct {
+    /**
+     * @brief ELF identification header (16 bytes).
+     *
+     */
     struct {
         uint8_t magic[4];
         uint8_t clazz;
@@ -19,6 +33,10 @@ typedef struct {
         uint8_t pad[7];
     } ident;
 
+    /**
+     * @brief 32-bit ELF file header.
+     *
+     */
     struct {
         uint16_t type;
         uint16_t machine;
@@ -35,6 +53,10 @@ typedef struct {
         uint16_t shstrndx;
     } ehdr;
 
+    /**
+     * @brief Array of ELF program header entries.
+     *
+     */
     struct {
         uint32_t type;
         uint32_t offset;
@@ -46,6 +68,10 @@ typedef struct {
         uint32_t align;
     } *phdr;
 
+    /**
+     * @brief Array of ELF section header entries.
+     *
+     */
     struct {
         uint32_t name;
         uint32_t type;
@@ -60,6 +86,16 @@ typedef struct {
     } *shdr;
 } elf_fields_t;
 
+/**
+ * @brief Parses an ELF file and loads its loadable segments into guest memory.
+ *
+ * @param file Open file stream positioned at the start of the ELF binary.
+ * @param fields Output structure populated with parsed ELF headers.
+ * @param mem Target guest memory into which segments are loaded.
+ *
+ * @return true on success, false if reading, validation, or memory loading fails.
+ *
+ */
 bool elf_read(FILE *file, elf_fields_t *fields, memory_t *mem);
 
 #endif // __ELF_H__
