@@ -9,9 +9,8 @@
 
 static bool mem_ok(size_t mem_size, uint32_t addr, size_t n);
 static uint32_t load_word(const uint8_t *mem, uint32_t addr);
-static void store_word(uint8_t *mem, uint32_t addr, uint32_t val);
 
-#define MAX_ITER 10000000
+#define MAX_ITER 1000000000
 
 int main(int argc, char *argv[]) {
     // Open and read ELF file specified as the first command-line argument
@@ -42,7 +41,7 @@ int main(int argc, char *argv[]) {
 
     uint32_t pc = fields.ehdr.entry; // Program counter in bytes
 
-    printf("\n", pc);
+    printf("\n");
 
     size_t i = 0;
     while (i++ < MAX_ITER) {
@@ -492,11 +491,4 @@ static bool mem_ok(size_t mem_size, uint32_t addr, size_t n) {
 
 static uint32_t load_word(const uint8_t *mem, uint32_t addr) {
     return mem[addr] | mem[addr + 1] << 8 | mem[addr + 2] << 16 | (uint32_t)mem[addr + 3] << 24;
-}
-
-static void store_word(uint8_t *mem, uint32_t addr, uint32_t val) {
-    mem[addr]     = val & 0xFF;
-    mem[addr + 1] = (val >> 8) & 0xFF;
-    mem[addr + 2] = (val >> 16) & 0xFF;
-    mem[addr + 3] = val >> 24;
 }

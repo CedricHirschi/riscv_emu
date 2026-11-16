@@ -5,6 +5,8 @@ objects := $(sources_no_main:.c=.o)
 tests := $(wildcard tests/*.c)
 test_exes := $(tests:.c=)
 
+CFLAGS := -O3 -Wall -Wextra -Werror
+
 all: run_main
 
 run_tests: $(test_exes)
