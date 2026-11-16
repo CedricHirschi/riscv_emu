@@ -42,6 +42,8 @@ int main(int argc, char *argv[]) {
 
     uint32_t pc = fields.ehdr.entry; // Program counter in bytes
 
+    printf("\n", pc);
+
     size_t i = 0;
     while (i++ < MAX_ITER) {
         if (pc >= read) {
@@ -469,6 +471,7 @@ int main(int argc, char *argv[]) {
         regs.arr[0] = 0;  // x0 is always 0
     }
 done:
+    printf("\n");
     if (i == MAX_ITER + 1) {
         fprintf(stderr, "Maximum number of iterations reached\n");
     }

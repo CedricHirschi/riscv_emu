@@ -13,14 +13,13 @@ run_tests: $(test_exes)
 		./$$test; \
 	done
 
-run_main: main program_new/main.elf
-	./main program_new/main.elf
+run_main: main program/main.elf
+	./main program/main.elf
 
-program/main.elf: program/main.c program/main.ld
-	$(MAKE) -C program
+program/main.elf:
+	$(MAKE) --no-print-directory -C program
 
-program_new/main.elf: program_new/main.c program_new/main.ld program_new/crt0.S
-	$(MAKE) -C program_new
+.PHONY: program/main.elf
 
 main: main.c $(objects)
 	$(CC) $(CFLAGS) $< $(objects) -o $@ -I. -Itests
