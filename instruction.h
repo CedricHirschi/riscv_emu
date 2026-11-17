@@ -24,6 +24,34 @@ typedef enum {
 } inst_format_t;
 
 /**
+ * @brief RISC-V operation kinds.
+ * 
+ */
+typedef enum {
+    INS_UNDECODED = 0, // calloc'd icache starts zero-initialized
+    INS_ILLEGAL,
+    INS_ADD, INS_SUB, INS_SLL, INS_SLT, INS_SLTU, INS_XOR, INS_SRL, INS_SRA, INS_OR, INS_AND,
+    INS_MUL, INS_MULH, INS_MULHSU, INS_MULHU, INS_DIV, INS_DIVU, INS_REM, INS_REMU,
+    INS_ADDI, INS_SLTI, INS_SLTIU, INS_XORI, INS_ORI, INS_ANDI, INS_SLLI, INS_SRLI, INS_SRAI,
+    INS_LB, INS_LH, INS_LW, INS_LBU, INS_LHU,
+    INS_SB, INS_SH, INS_SW,
+    INS_BEQ, INS_BNE, INS_BLT, INS_BGE, INS_BLTU, INS_BGEU,
+    INS_LUI, INS_AUIPC, INS_JAL, INS_JALR,
+    INS_ECALL, INS_EBREAK,
+    INS_MRET, INS_CSRRW, INS_CSRRS, INS_CSRRC, INS_CSRRWI, INS_CSRRSI, INS_CSRRCI,
+} inst_op_t;
+
+/**
+ * @brief Represents a decoded RISC-V instruction, including operation kind, register indices, and immediate value.
+ * 
+ */
+typedef struct {
+    inst_op_t op;
+    uint8_t rd, rs1, rs2;
+    int32_t imm;
+} inst_decoded_t;
+
+/**
  * @brief Determines the encoding format of a RISC-V instruction.
  *
  * @param inst 32-bit instruction word to inspect.
@@ -103,5 +131,15 @@ uint32_t inst_get_funct7(uint32_t inst);
  *
  */
 int32_t inst_get_imm(uint32_t inst, inst_format_t fmt);
+
+/**
+ * @brief Decodes a 32-bit RISC-V instruction into its constituent fields.
+ *
+ * @param word 32-bit instruction word.
+ *
+ * @return Decoded instruction structure containing opcode, register indices, and immediate value.
+ *
+ */
+inst_decoded_t inst_decode(uint32_t word);
 
 #endif // __INSTRUCTION_H__

@@ -117,6 +117,57 @@ void test_inst_get_imm() {
     }
 }
 
+// Encoders written from the spec, independent of instruction.c
+#define R(f7, f3, rd, rs1, rs2) ((uint32_t)(f7) << 25 | (rs2) << 20 | (rs1) << 15 | (f3) << 12 | (rd) << 7 | 0x33)
+#define I(op, f3, rd, rs1, imm) (((uint32_t)(imm) & 0xFFF) << 20 | (rs1) << 15 | (f3) << 12 | (rd) << 7 | (op))
+#define SYS(f3, rd, rs1, csr) I(0x73, f3, rd, rs1, csr)
+
+void test_inst_decode() {
+    inst_decoded_t d = inst_decode(R(0x00, 0, 3, 1, 2)); // ADD x3, x1, x2
+    assert(d.op == INS_ADD && d.rd == 3 && d.rs1 == 1 && d.rs2 == 2);
+    assert(inst_decode(R(0x20, 0, 3, 1, 2)).op == INS_SUB);
+    assert(inst_decode(R(0x20, 5, 3, 1, 2)).op == INS_SRA);
+    assert(inst_decode(R(0x01, 0, 3, 1, 2)).op == INS_MUL);
+    assert(inst_decode(R(0x20, 1, 3, 1, 2)).op == INS_ILLEGAL); // funct7 0x20 only for SUB/SRA
+
+    d = inst_decode(I(0x13, 5, 3, 1, 0x400 | 5)); // SRAI keeps only the shamt
+    assert(d.op == INS_SRAI && d.imm == 5);
+    assert(inst_decode(I(0x13, 1, 3, 1, 0x400 | 5)).op == INS_ILLEGAL); // no arithmetic SLLI
+
+    d = inst_decode(I(0x03, 2, 3, 1, -4)); // LW x3, -4(x1)
+    assert(d.op == INS_LW && d.imm == -4);
+    assert(inst_decode(I(0x03, 3, 3, 1, 0)).op == INS_ILLEGAL); // no LD on RV32
+
+    // Never INS_UNDECODED, which marks empty icache slots
+    assert(inst_decode(0x00000000).op == INS_ILLEGAL);
+    assert(inst_decode(0xFFFFFFFF).op == INS_ILLEGAL);
+}
+
+void test_inst_decode_system() {
+    assert(inst_decode(0x00000073).op == INS_ECALL);
+    assert(inst_decode(0x00100073).op == INS_EBREAK);
+    assert(inst_decode(0x30200073).op == INS_MRET);
+
+    // ECALL/EBREAK/MRET encodings are fully fixed: rd, rs1 and other funct12 values are illegal
+    assert(inst_decode(SYS(0, 1, 0, 0x000)).op == INS_ILLEGAL);
+    assert(inst_decode(SYS(0, 0, 1, 0x001)).op == INS_ILLEGAL);
+    assert(inst_decode(SYS(0, 1, 0, 0x302)).op == INS_ILLEGAL);
+    assert(inst_decode(SYS(0, 0, 0, 0x002)).op == INS_ILLEGAL);
+
+    const uint8_t csr_ops[8] = { INS_ILLEGAL, INS_CSRRW, INS_CSRRS, INS_CSRRC, INS_ILLEGAL, INS_CSRRWI, INS_CSRRSI, INS_CSRRCI };
+    for (uint32_t f3 = 1; f3 < 8; f3++) {
+        assert(inst_decode(SYS(f3, 5, 7, 0x300)).op == csr_ops[f3]);
+    }
+
+    // CSR numbers >= 0x800 stay unsigned
+    inst_decoded_t d = inst_decode(SYS(2, 5, 0, 0xF14)); // CSRRS x5, mhartid, x0
+    assert(d.op == INS_CSRRS && d.rd == 5 && d.rs1 == 0 && d.imm == 0xF14);
+
+    // Immediate forms carry the 5-bit value in rs1
+    d = inst_decode(SYS(5, 0, 31, 0x305)); // CSRRWI x0, mtvec, 31
+    assert(d.op == INS_CSRRWI && d.rs1 == 31 && d.imm == 0x305);
+}
+
 
 int main() {
     test_inst_get_opcode();
@@ -127,6 +178,8 @@ int main() {
 	test_inst_get_rs2();
 	test_inst_get_funct7();
 	test_inst_get_imm();
+	test_inst_decode();
+	test_inst_decode_system();
 
 	return 0;
 }

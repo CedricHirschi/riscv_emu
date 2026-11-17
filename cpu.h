@@ -11,6 +11,7 @@
 
 #include "memory.h"
 #include "register.h"
+#include "instruction.h"
 
 /**
  * @brief Represents the emulated RISC-V CPU state.
@@ -19,7 +20,7 @@
 typedef struct {
     register_file_t regs;
     uint32_t pc;
-    struct decoded *icache;
+    inst_decoded_t *icache;
 
     struct {
         uint32_t mstatus;  // bit 3 MIE (interrupts on), bit 7 MPIE (saved MIE); MPP reads as M (0x1800)

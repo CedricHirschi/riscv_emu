@@ -207,7 +207,7 @@ void test_system_and_errors() {
     expect_error(RAM, 0);        // RAM is not executable
 }
 
-// Code lives in ROM, so stores to it fail and the decoded instruction can never go stale
+// Code lives in ROM, so stores to it fail and the inst_decoded instruction can never go stale
 void test_rom_read_only() {
     uint32_t sw = S(2, 0, 2, 0); // SW x2, 0(x0): overwrite itself
     for (uint32_t f3 = 0; f3 < 3; f3++) {
