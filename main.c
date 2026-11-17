@@ -5,6 +5,7 @@
 #include "cpu.h"
 
 #include "device_uart.h"
+#include "device_exit.h"
 
 
 #define MAX_ITER 1000000000
@@ -36,6 +37,15 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    exit_state_t exit_state = { .exited = false, .code = 0 };
+    memory_device_t exit_dev = device_exit_init(EXIT_BASE, &exit_state);
+    if (!memory_add_device(&mem, &exit_dev)) {
+        fprintf(stderr, "Failed to add EXIT device\n");
+        memory_free(&mem);
+        fclose(file);
+        return 1;
+    }
+
     uint32_t entry;
     if (!elf_read(file, &mem, &entry)) {
         fprintf(stderr, "Failed to parse ELF file\n");
@@ -56,12 +66,12 @@ int main(int argc, char *argv[]) {
     printf("\n");
 
     step_t r = STEP_OK;
-    for (size_t i = 0; i < MAX_ITER && r == STEP_OK; i++) {
+    for (size_t i = 0; i < MAX_ITER && r == STEP_OK && !exit_state.exited; i++) {
         r = cpu_step(&cpu, &mem);
     }
 
     printf("\n");
-    if (r == STEP_OK) {
+    if (r == STEP_OK && !exit_state.exited) {
         fprintf(stderr, "Maximum number of iterations reached\n");
         memory_free(&mem);
         return 1;
@@ -71,9 +81,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    printf("> Program returned %d\n", cpu.regs.abi.a0);
+    if (exit_state.exited) {
+        printf("> Program exited with code %d\n", exit_state.code);
+    } else {
+        printf("> Program did not exit properly\n");
+    }
 
-    int exit_code = cpu.regs.abi.a0 & 0xFF; // truncate exit code to 8 bits like a POSIX process
+    int exit_code = exit_state.code & 0xFF; // truncate exit code to 8 bits like a POSIX process
     memory_free(&mem);
     return exit_code;
 }

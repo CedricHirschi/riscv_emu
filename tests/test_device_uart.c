@@ -4,8 +4,8 @@
 #include "device_uart.h"
 
 #define BASE   UART_BASE
-#define TX     UART_BASE + offsetof(uart_regs_t, tx)
-#define STATUS UART_BASE + offsetof(uart_regs_t, status)
+#define TX     (UART_BASE + offsetof(uart_regs_t, tx))
+#define STATUS (UART_BASE + offsetof(uart_regs_t, status))
 
 static memory_t mem;
 static uart_state_t uart;

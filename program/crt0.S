@@ -3,5 +3,7 @@
 _start:
     lla sp, __stack_top
     call main
-    li a7, 93 # exit(a0 = main's return value)
-    ecall
+    li t0, 0x10001000   # EXIT_BASE: stores need a base register, no absolute addressing
+    sw a0, 0(t0)        # exit(main's return value)
+1:
+    j 1b
