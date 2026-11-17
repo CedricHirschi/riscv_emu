@@ -51,19 +51,59 @@ typedef enum {
     MEMORY_LOCATION_RAM = 0x2,
     MEMORY_LOCATION_MMIO = 0x4,
     MEMORY_LOCATION_MEM = MEMORY_LOCATION_ROM | MEMORY_LOCATION_RAM,
-    MEMORY_LOCATION_WRITABLE = MEMORY_LOCATION_RAM | MEMORY_LOCATION_MMIO,
-    MEMORY_LOCATION_ALL = MEMORY_LOCATION_ROM | MEMORY_LOCATION_RAM | MEMORY_LOCATION_MMIO
+    MEMORY_LOCATION_WRITABLE = MEMORY_LOCATION_RAM
 } memory_location_t;
 
+/**
+ * @brief Memory-mapped I/O device, reached by guest loads/stores that miss ROM and RAM.
+ *
+ * An access is routed to the device only if it lies entirely within [base, base + size).
+ * Values are passed as register values, not bytes: a byte write of 0xAB arrives as val = 0xAB,
+ * and only the low len bytes of a read's *val are returned to the guest.
+ *
+ * @note The struct is copied by memory_add_device(), so callbacks receive a pointer to that copy;
+ *       keep long-lived data behind `state`, not in the struct itself.
+ *
+ */
+typedef struct memory_device {
+    uint32_t base;  ///< Absolute guest address of the first register, inside the MMIO region.
+    uint32_t size;  ///< Size of the register window in bytes.
+
+    /**
+     * @brief Handles a guest load. NULL makes the device write-only.
+     *
+     * @param dev The device being accessed.
+     * @param off Byte offset of the access relative to base.
+     * @param len Access width in bytes: 1, 2 or 4.
+     * @param val Output for the value read; pre-set to 0.
+     *
+     * @return true on success, false to raise a load access fault.
+     */
+    bool (*read)(struct memory_device *dev, uint32_t off, uint32_t len, uint32_t *val);
+
+    /**
+     * @brief Handles a guest store. NULL makes the device read-only.
+     *
+     * @param dev The device being accessed.
+     * @param off Byte offset of the access relative to base.
+     * @param len Access width in bytes: 1, 2 or 4.
+     * @param val Value written, zero-extended from len bytes.
+     *
+     * @return true on success, false to raise a store access fault.
+     */
+    bool (*write)(struct memory_device *dev, uint32_t off, uint32_t len, uint32_t val);
+
+    void *state;    ///< Device-private data, passed through unchanged.
+} memory_device_t;
 
 /**
- * @brief Guest memory: separate host buffers for the ROM, MMIO and RAM regions.
+ * @brief Guest memory: separate host buffers for the ROM and RAM regions, plus a list of MMIO devices.
  *
  */
 typedef struct {
     uint8_t *rom; uint32_t rom_size;
-    uint8_t *mmio; uint32_t mmio_size;
     uint8_t *ram; uint32_t ram_size;
+    memory_device_t *devices; size_t n_devices;
 } memory_t;
 
 /**
@@ -73,6 +113,17 @@ typedef struct {
  *
  */
 bool memory_init(memory_t *mem);
+
+/**
+ * @brief Add and get memory-mapped I/O devices for the guest memory.
+ *
+ * @param mem Pointer to guest memory.
+ * @param dev Allocated memory-mapped I/O device to add.
+ *
+ * @return true if the device was added successfully, false otherwise.
+ *
+ */
+bool memory_add_device(memory_t *mem, const memory_device_t *dev);
 
 /**
  * @brief Frees the guest memory buffer and resets its fields.

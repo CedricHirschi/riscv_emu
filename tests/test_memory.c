@@ -6,16 +6,16 @@
 static memory_t mem;
 
 static void test_init(void) {
-    assert(mem.rom && mem.ram && mem.mmio);
+    assert(mem.rom && mem.ram);
     assert(mem.rom_size == MEMORY_ROM_SIZE);
     assert(mem.ram_size == MEMORY_RAM_SIZE);
-    assert(mem.mmio_size == MEMORY_MMIO_SIZE);
+    assert(mem.n_devices == 0);
 
     // Guest memory starts zeroed
     uint32_t w = 0xFFFFFFFF;
     assert(memory_read_word(&mem, MEMORY_ROM_BASE, &w) && w == 0);
     assert(memory_read_word(&mem, MEMORY_RAM_BASE + MEMORY_RAM_SIZE - 4, &w) && w == 0);
-    assert(memory_read_word(&mem, MEMORY_MMIO_BASE, &w) && w == 0);
+    assert(!memory_read_word(&mem, MEMORY_MMIO_BASE, &w)); // MMIO without a device faults
 }
 
 // First and last byte of each region, plus the gaps around them
@@ -34,9 +34,9 @@ static void test_location(void) {
 
 static void test_ptr(void) {
     // Maps guest address to the matching host offset
-    assert(memory_ptr(&mem, MEMORY_ROM_BASE + 8, 4, MEMORY_LOCATION_ALL) == mem.rom + 8);
-    assert(memory_ptr(&mem, MEMORY_RAM_BASE + 8, 4, MEMORY_LOCATION_ALL) == mem.ram + 8);
-    assert(memory_ptr(&mem, MEMORY_MMIO_BASE + 8, 4, MEMORY_LOCATION_ALL) == mem.mmio + 8);
+    assert(memory_ptr(&mem, MEMORY_ROM_BASE + 8, 4, MEMORY_LOCATION_MEM) == mem.rom + 8);
+    assert(memory_ptr(&mem, MEMORY_RAM_BASE + 8, 4, MEMORY_LOCATION_MEM) == mem.ram + 8);
+    assert(memory_ptr(&mem, MEMORY_MMIO_BASE + 8, 4, MEMORY_LOCATION_MEM | MEMORY_LOCATION_MMIO) == NULL); // devices have no host memory
 
     // The location mask filters regions
     assert(memory_ptr(&mem, MEMORY_ROM_BASE, 4, MEMORY_LOCATION_WRITABLE) == NULL);
@@ -45,26 +45,24 @@ static void test_ptr(void) {
 
     // Ranges must lie fully inside one region, even when two regions touch
     uint32_t ram_end = MEMORY_RAM_BASE + MEMORY_RAM_SIZE;
-    assert(memory_ptr(&mem, ram_end - 4, 4, MEMORY_LOCATION_ALL) == mem.ram + MEMORY_RAM_SIZE - 4);
-    assert(memory_ptr(&mem, ram_end - 3, 4, MEMORY_LOCATION_ALL) == NULL);
-    assert(memory_ptr(&mem, MEMORY_ROM_BASE + MEMORY_ROM_SIZE - 2, 4, MEMORY_LOCATION_ALL) == NULL); // past the end of ROM
-    assert(memory_ptr(&mem, MEMORY_RAM_BASE, MEMORY_RAM_SIZE, MEMORY_LOCATION_ALL) == mem.ram);
-    assert(memory_ptr(&mem, MEMORY_RAM_BASE, MEMORY_RAM_SIZE + 1, MEMORY_LOCATION_ALL) == NULL);
+    assert(memory_ptr(&mem, ram_end - 4, 4, MEMORY_LOCATION_MEM) == mem.ram + MEMORY_RAM_SIZE - 4);
+    assert(memory_ptr(&mem, ram_end - 3, 4, MEMORY_LOCATION_MEM) == NULL);
+    assert(memory_ptr(&mem, MEMORY_ROM_BASE + MEMORY_ROM_SIZE - 2, 4, MEMORY_LOCATION_MEM) == NULL); // past the end of ROM
+    assert(memory_ptr(&mem, MEMORY_RAM_BASE, MEMORY_RAM_SIZE, MEMORY_LOCATION_MEM) == mem.ram);
+    assert(memory_ptr(&mem, MEMORY_RAM_BASE, MEMORY_RAM_SIZE + 1, MEMORY_LOCATION_MEM) == NULL);
 }
 
-// Last in-bounds address works and the next one fails, for every size, in each writable region
+// Last in-bounds RAM address works and the next one fails, for every size
 static void test_bounds(void) {
-    const uint32_t ends[] = { MEMORY_RAM_BASE + MEMORY_RAM_SIZE, MEMORY_MMIO_BASE + MEMORY_MMIO_SIZE };
-    for (size_t r = 0; r < 2; r++) {
-        for (uint32_t len = 1; len <= 4; len *= 2) {
-            uint32_t in = 0xA1B2C3D4, out = 0;
-            assert(memory_write(&mem, ends[r] - len, &in, len));
-            assert(memory_read(&mem, ends[r] - len, &out, len));
-            assert(memcmp(&in, &out, len) == 0);
+    uint32_t end = MEMORY_RAM_BASE + MEMORY_RAM_SIZE;
+    for (uint32_t len = 1; len <= 4; len *= 2) {
+        uint32_t in = 0xA1B2C3D4, out = 0;
+        assert(memory_write(&mem, end - len, &in, len));
+        assert(memory_read(&mem, end - len, &out, len));
+        assert(memcmp(&in, &out, len) == 0);
 
-            assert(!memory_write(&mem, ends[r] - len + 1, &in, len));
-            assert(!memory_read(&mem, ends[r] - len + 1, &out, len));
-        }
+        assert(!memory_write(&mem, end - len + 1, &in, len));
+        assert(!memory_read(&mem, end - len + 1, &out, len));
     }
 }
 
@@ -123,10 +121,96 @@ static void test_little_endian(void) {
     assert(!memcmp(mem.ram + 12, "\x00\x7F\x00", 3));
 }
 
+// Fake device: records the last access, reads return 0x11223344 + off
+typedef struct { uint32_t off, len, val, writes; } fake_t;
+
+static bool fake_read(memory_device_t *dev, uint32_t off, uint32_t len, uint32_t *val) {
+    fake_t *f = dev->state;
+    f->off = off;
+    f->len = len;
+    *val = 0x11223344 + off;
+    return true;
+}
+
+static bool fake_write(memory_device_t *dev, uint32_t off, uint32_t len, uint32_t val) {
+    fake_t *f = dev->state;
+    f->off = off;
+    f->len = len;
+    f->val = val;
+    f->writes++;
+    return true;
+}
+
+static bool reject_read(memory_device_t *dev, uint32_t off, uint32_t len, uint32_t *val) {
+    (void)dev; (void)off; (void)len;
+    *val = 0xBAD;
+    return false;
+}
+
+static bool reject_write(memory_device_t *dev, uint32_t off, uint32_t len, uint32_t val) {
+    (void)dev; (void)off; (void)len; (void)val;
+    return false;
+}
+
+#define DEV (MEMORY_MMIO_BASE + 0x100)
+#define RO  (MEMORY_MMIO_BASE + 0x200)
+#define BAD (MEMORY_MMIO_BASE + 0x300)
+
+static void test_devices(void) {
+    static fake_t fake;
+    memory_device_t d = { DEV, 16, fake_read, fake_write, &fake };
+    assert(memory_add_device(&mem, &d));
+    d.base = 0; // memory keeps its own copy
+    assert(memory_add_device(&mem, &(memory_device_t){ RO, 4, fake_read, NULL, &fake }));
+    assert(memory_add_device(&mem, &(memory_device_t){ BAD, 4, reject_read, reject_write, NULL }));
+    assert(mem.n_devices == 3);
+
+    // Writes arrive as zero-extended register values with offset and width
+    assert(memory_write_byte(&mem, DEV + 3, 0xAB));
+    assert(fake.off == 3 && fake.len == 1 && fake.val == 0xAB);
+    assert(memory_write_half(&mem, DEV + 2, 0xBEEF));
+    assert(fake.off == 2 && fake.len == 2 && fake.val == 0xBEEF);
+    assert(memory_write_word(&mem, DEV + 12, 0xDEADBEEF));
+    assert(fake.off == 12 && fake.len == 4 && fake.val == 0xDEADBEEF);
+    uint32_t in = 0xA1B2C3D4;
+    assert(memory_write(&mem, DEV, &in, 1));
+    assert(fake.val == 0xD4); // only the low len bytes are passed on
+
+    // Reads return only the low len bytes of the device value
+    uint8_t b;
+    uint16_t h;
+    uint32_t w;
+    assert(memory_read_word(&mem, DEV + 4, &w) && w == 0x11223348);
+    assert(memory_read_half(&mem, DEV + 2, &h) && h == 0x3346 && fake.len == 2);
+    assert(memory_read_byte(&mem, DEV + 1, &b) && b == 0x45 && fake.len == 1);
+
+    // Accesses must lie fully inside a device
+    uint32_t writes = fake.writes;
+    assert(!memory_write_word(&mem, DEV + 14, 0)); // straddles the end
+    assert(!memory_write_byte(&mem, DEV - 1, 0));  // just before base
+    assert(!memory_write_byte(&mem, DEV + 16, 0)); // just after the end, no device there
+    assert(fake.writes == writes);
+
+    // NULL write makes a device read-only
+    assert(memory_read_word(&mem, RO, &w) && w == 0x11223344);
+    assert(!memory_write_word(&mem, RO, 0));
+    assert(fake.writes == writes);
+
+    // A callback returning false faults, and a failed read leaves the output untouched
+    w = 0x55555555;
+    assert(!memory_read_word(&mem, BAD, &w) && w == 0x55555555);
+    assert(!memory_write_word(&mem, BAD, 0));
+
+    // RAM and ROM still behave as before with devices present
+    assert(memory_write_word(&mem, MEMORY_RAM_BASE, 0x12345678));
+    assert(memory_read_word(&mem, MEMORY_RAM_BASE, &w) && w == 0x12345678);
+    assert(!memory_write_word(&mem, MEMORY_ROM_BASE, 0));
+}
+
 static void test_free(void) {
     memory_free(&mem);
-    assert(!mem.rom && !mem.ram && !mem.mmio);
-    assert(mem.rom_size == 0 && mem.ram_size == 0 && mem.mmio_size == 0);
+    assert(!mem.rom && !mem.ram && !mem.devices);
+    assert(mem.rom_size == 0 && mem.ram_size == 0 && mem.n_devices == 0);
     memory_free(&mem); // second free is a no-op
 
     uint32_t w;
@@ -144,6 +228,7 @@ int main(void) {
     test_rom_read_only();
     test_failed_access_has_no_effect();
     test_little_endian();
+    test_devices();
     test_free();
     return 0;
 }
