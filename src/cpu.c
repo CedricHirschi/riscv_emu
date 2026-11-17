@@ -81,78 +81,98 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
         *d = inst_decode(word);
     }
 
-    uint32_t a = x[d->rs1], b = x[d->rs2];
-    uint32_t addr = a + d->imm;
     uint32_t next = pc + 4;
 
     switch (d->op) {
-        case INS_ADD:  x[d->rd] = a + b; break;
-        case INS_SUB:  x[d->rd] = a - b; break;
-        case INS_SLL:  x[d->rd] = a << (b & 0x1F); break;
-        case INS_SLT:  x[d->rd] = (int32_t)a < (int32_t)b; break;
-        case INS_SLTU: x[d->rd] = a < b; break;
-        case INS_XOR:  x[d->rd] = a ^ b; break;
-        case INS_SRL:  x[d->rd] = a >> (b & 0x1F); break;
-        case INS_SRA:  x[d->rd] = (int32_t)a >> (b & 0x1F); break;
-        case INS_OR:   x[d->rd] = a | b; break;
-        case INS_AND:  x[d->rd] = a & b; break;
+        case INS_ADD:  x[d->rd] = x[d->rs1] + x[d->rs2]; break;
+        case INS_SUB:  x[d->rd] = x[d->rs1] - x[d->rs2]; break;
+        case INS_SLL:  x[d->rd] = x[d->rs1] << (x[d->rs2] & 0x1F); break;
+        case INS_SLT:  x[d->rd] = (int32_t)x[d->rs1] < (int32_t)x[d->rs2]; break;
+        case INS_SLTU: x[d->rd] = x[d->rs1] < x[d->rs2]; break;
+        case INS_XOR:  x[d->rd] = x[d->rs1] ^ x[d->rs2]; break;
+        case INS_SRL:  x[d->rd] = x[d->rs1] >> (x[d->rs2] & 0x1F); break;
+        case INS_SRA:  x[d->rd] = (int32_t)x[d->rs1] >> (x[d->rs2] & 0x1F); break;
+        case INS_OR:   x[d->rd] = x[d->rs1] | x[d->rs2]; break;
+        case INS_AND:  x[d->rd] = x[d->rs1] & x[d->rs2]; break;
 
-        case INS_MUL:    x[d->rd] = a * b; break;
-        case INS_MULH:   x[d->rd] = ((int64_t)(int32_t)a * (int64_t)(int32_t)b) >> 32; break;
-        case INS_MULHSU: x[d->rd] = ((int64_t)(int32_t)a * (uint64_t)b) >> 32; break;
-        case INS_MULHU:  x[d->rd] = ((uint64_t)a * (uint64_t)b) >> 32; break;
+        case INS_MUL:    x[d->rd] = x[d->rs1] * x[d->rs2]; break;
+        case INS_MULH:   x[d->rd] = ((int64_t)(int32_t)x[d->rs1] * (int64_t)(int32_t)x[d->rs2]) >> 32; break;
+        case INS_MULHSU: x[d->rd] = ((int64_t)(int32_t)x[d->rs1] * (uint64_t)x[d->rs2]) >> 32; break;
+        case INS_MULHU:  x[d->rd] = ((uint64_t)x[d->rs1] * (uint64_t)x[d->rs2]) >> 32; break;
 
         // RISC-V defines div-by-zero and INT32_MIN / -1 results instead of trapping
-        case INS_DIV:  x[d->rd] = b == 0 ? 0xFFFFFFFF : ((int32_t)a == INT32_MIN && (int32_t)b == -1) ? a : (uint32_t)((int32_t)a / (int32_t)b); break;
-        case INS_DIVU: x[d->rd] = b == 0 ? 0xFFFFFFFF : a / b; break;
-        case INS_REM:  x[d->rd] = b == 0 ? a : ((int32_t)a == INT32_MIN && (int32_t)b == -1) ? 0 : (uint32_t)((int32_t)a % (int32_t)b); break;
-        case INS_REMU: x[d->rd] = b == 0 ? a : a % b; break;
+        case INS_DIV: {
+            int32_t dividend = (int32_t)x[d->rs1], divisor = (int32_t)x[d->rs2];
+            if (divisor == 0) x[d->rd] = UINT32_MAX;
+            else if (dividend == INT32_MIN && divisor == -1) x[d->rd] = (uint32_t)dividend;
+            else x[d->rd] = (uint32_t)(dividend / divisor);
+        } break;
+        case INS_DIVU: {
+            uint32_t divisor = x[d->rs2];
+            x[d->rd] = divisor == 0 ? UINT32_MAX : x[d->rs1] / divisor;
+        } break;
+        case INS_REM: {
+            int32_t dividend = (int32_t)x[d->rs1], divisor = (int32_t)x[d->rs2];
+            if (divisor == 0) x[d->rd] = (uint32_t)dividend;
+            else if (dividend == INT32_MIN && divisor == -1) x[d->rd] = 0;
+            else x[d->rd] = (uint32_t)(dividend % divisor);
+        } break;
+        case INS_REMU: {
+            uint32_t divisor = x[d->rs2];
+            x[d->rd] = divisor == 0 ? x[d->rs1] : x[d->rs1] % divisor;
+        } break;
 
-        case INS_ADDI:  x[d->rd] = a + d->imm; break;
-        case INS_SLTI:  x[d->rd] = (int32_t)a < d->imm; break;
-        case INS_SLTIU: x[d->rd] = a < (uint32_t)d->imm; break;
-        case INS_XORI:  x[d->rd] = a ^ d->imm; break;
-        case INS_ORI:   x[d->rd] = a | d->imm; break;
-        case INS_ANDI:  x[d->rd] = a & d->imm; break;
-        case INS_SLLI:  x[d->rd] = a << d->imm; break;
-        case INS_SRLI:  x[d->rd] = a >> d->imm; break;
-        case INS_SRAI:  x[d->rd] = (int32_t)a >> d->imm; break;
+        case INS_ADDI:  x[d->rd] = x[d->rs1] + d->imm; break;
+        case INS_SLTI:  x[d->rd] = (int32_t)x[d->rs1] < d->imm; break;
+        case INS_SLTIU: x[d->rd] = x[d->rs1] < (uint32_t)d->imm; break;
+        case INS_XORI:  x[d->rd] = x[d->rs1] ^ d->imm; break;
+        case INS_ORI:   x[d->rd] = x[d->rs1] | d->imm; break;
+        case INS_ANDI:  x[d->rd] = x[d->rs1] & d->imm; break;
+        case INS_SLLI:  x[d->rd] = x[d->rs1] << d->imm; break;
+        case INS_SRLI:  x[d->rd] = x[d->rs1] >> d->imm; break;
+        case INS_SRAI:  x[d->rd] = (int32_t)x[d->rs1] >> d->imm; break;
 
         case INS_LB: case INS_LBU: {
+            uint32_t addr = x[d->rs1] + d->imm;
             uint8_t v;
             if (!memory_read_byte(mem, addr, &v)) return cpu_trap(cpu, CAUSE_LOAD_FAULT, addr);
             x[d->rd] = d->op == INS_LB ? (uint32_t)(int8_t)v : v;
         } break;
         case INS_LH: case INS_LHU: {
+            uint32_t addr = x[d->rs1] + d->imm;
             uint16_t v;
             if (!memory_read_half(mem, addr, &v)) return cpu_trap(cpu, CAUSE_LOAD_FAULT, addr);
             x[d->rd] = d->op == INS_LH ? (uint32_t)(int16_t)v : v;
         } break;
-        case INS_LW:
+        case INS_LW: {
+            uint32_t addr = x[d->rs1] + d->imm;
             if (!memory_read_word(mem, addr, &x[d->rd])) return cpu_trap(cpu, CAUSE_LOAD_FAULT, addr);
-            break;
+        } break;
 
-        case INS_SB:
-            if (!memory_write_byte(mem, addr, b & 0xFF)) return cpu_trap(cpu, CAUSE_STORE_FAULT, addr);
-            break;
-        case INS_SH:
-            if (!memory_write_half(mem, addr, b & 0xFFFF)) return cpu_trap(cpu, CAUSE_STORE_FAULT, addr);
-            break;
-        case INS_SW:
-            if (!memory_write_word(mem, addr, b)) return cpu_trap(cpu, CAUSE_STORE_FAULT, addr);
-            break;
+        case INS_SB: {
+            uint32_t addr = x[d->rs1] + d->imm;
+            if (!memory_write_byte(mem, addr, x[d->rs2] & 0xFF)) return cpu_trap(cpu, CAUSE_STORE_FAULT, addr);
+        } break;
+        case INS_SH: {
+            uint32_t addr = x[d->rs1] + d->imm;
+            if (!memory_write_half(mem, addr, x[d->rs2] & 0xFFFF)) return cpu_trap(cpu, CAUSE_STORE_FAULT, addr);
+        } break;
+        case INS_SW: {
+            uint32_t addr = x[d->rs1] + d->imm;
+            if (!memory_write_word(mem, addr, x[d->rs2])) return cpu_trap(cpu, CAUSE_STORE_FAULT, addr);
+        } break;
 
-        case INS_BEQ:  if (a == b) JUMP(pc + d->imm); break;
-        case INS_BNE:  if (a != b) JUMP(pc + d->imm); break;
-        case INS_BLT:  if ((int32_t)a < (int32_t)b) JUMP(pc + d->imm); break;
-        case INS_BGE:  if ((int32_t)a >= (int32_t)b) JUMP(pc + d->imm); break;
-        case INS_BLTU: if (a < b) JUMP(pc + d->imm); break;
-        case INS_BGEU: if (a >= b) JUMP(pc + d->imm); break;
+        case INS_BEQ:  if (x[d->rs1] == x[d->rs2]) JUMP(pc + d->imm); break;
+        case INS_BNE:  if (x[d->rs1] != x[d->rs2]) JUMP(pc + d->imm); break;
+        case INS_BLT:  if ((int32_t)x[d->rs1] < (int32_t)x[d->rs2]) JUMP(pc + d->imm); break;
+        case INS_BGE:  if ((int32_t)x[d->rs1] >= (int32_t)x[d->rs2]) JUMP(pc + d->imm); break;
+        case INS_BLTU: if (x[d->rs1] < x[d->rs2]) JUMP(pc + d->imm); break;
+        case INS_BGEU: if (x[d->rs1] >= x[d->rs2]) JUMP(pc + d->imm); break;
 
         case INS_LUI:   x[d->rd] = d->imm; break;
         case INS_AUIPC: x[d->rd] = pc + d->imm; break;
         case INS_JAL:   JUMP(pc + d->imm); x[d->rd] = pc + 4; break;
-        case INS_JALR:  JUMP((a + d->imm) & ~1u); x[d->rd] = pc + 4; break; // clear bit 0 per spec; a read before rd write (rd may equal rs1)
+        case INS_JALR:  JUMP((x[d->rs1] + d->imm) & ~1u); x[d->rd] = pc + 4; break; // clear bit 0 per spec; rs1 read before rd write (rd may equal rs1)
 
         case INS_ECALL: {
             if (cpu->csr.mtvec) return cpu_trap(cpu, CAUSE_ECALL_M, 0); // guest owns ECALL once it has a handler
@@ -168,7 +188,7 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
             bool imm = d->op >= INS_CSRRWI;                  // relies on enum order
             bool rw = d->op == INS_CSRRW || d->op == INS_CSRRWI;
             bool set = d->op == INS_CSRRS || d->op == INS_CSRRSI;
-            uint32_t src = imm ? d->rs1 : a, old = 0;
+            uint32_t src = imm ? d->rs1 : x[d->rs1], old = 0;
             if (!(rw && d->rd == 0) && !cpu_csr_read(cpu, d->imm, &old)) goto illegal;  // CSRRW x0 must not read
             if (rw || d->rs1 != 0) {                                                // CSRRS/C with x0 must not write
                 if (!cpu_csr_write(cpu, d->imm, rw ? src : set ? old | src : old & ~src)) goto illegal;
