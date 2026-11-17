@@ -20,6 +20,16 @@ typedef struct {
     register_file_t regs;
     uint32_t pc;
     struct decoded *icache;
+
+    struct {
+        uint32_t mstatus;  // bit 3 MIE (interrupts on), bit 7 MPIE (saved MIE); MPP reads as M (0x1800)
+        uint32_t mtvec;    // handler address; low 2 bits = mode (0 direct, 1 vectored)
+        uint32_t mepc;     // pc of the trapping instruction; writes clear bits [1:0]
+        uint32_t mcause;   // bit 31 = interrupt, rest = cause code
+        uint32_t mtval;    // faulting address or instruction word
+        uint32_t mscratch; // free for the handler, used to save a register on entry
+        uint32_t mie, mip; // interrupt enable/pending, only needed once interrupts exist
+    } csr;
 } cpu_t;
 
 /**

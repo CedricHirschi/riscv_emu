@@ -17,6 +17,7 @@ enum {
     INS_BEQ, INS_BNE, INS_BLT, INS_BGE, INS_BLTU, INS_BGEU,
     INS_LUI, INS_AUIPC, INS_JAL, INS_JALR,
     INS_ECALL, INS_EBREAK,
+    INS_MRET, INS_CSRRW, INS_CSRRS, INS_CSRRC, INS_CSRRWI, INS_CSRRSI, INS_CSRRCI,
 };
 
 struct decoded {
@@ -30,6 +31,7 @@ static const uint8_t I_ALU[8]   = { INS_ADDI, INS_SLLI, INS_SLTI, INS_SLTIU, INS
 static const uint8_t LOADS[8]   = { INS_LB, INS_LH, INS_LW, INS_ILLEGAL, INS_LBU, INS_LHU, INS_ILLEGAL, INS_ILLEGAL };
 static const uint8_t STORES[8]  = { INS_SB, INS_SH, INS_SW, INS_ILLEGAL, INS_ILLEGAL, INS_ILLEGAL, INS_ILLEGAL, INS_ILLEGAL };
 static const uint8_t BRANCH[8]  = { INS_BEQ, INS_BNE, INS_ILLEGAL, INS_ILLEGAL, INS_BLT, INS_BGE, INS_BLTU, INS_BGEU };
+static const uint8_t CSR_OPS[8] = { INS_ILLEGAL, INS_CSRRW, INS_CSRRS, INS_CSRRC, INS_ILLEGAL, INS_CSRRWI, INS_CSRRSI, INS_CSRRCI };
 
 static struct decoded decode(uint32_t word)
 {
@@ -65,8 +67,13 @@ static struct decoded decode(uint32_t word)
         case 0x6F: d.op = INS_JAL; break;
         case 0x67: d.op = INS_JALR; break;
         case 0x73:
-            if (d.imm == 0) d.op = INS_ECALL;
-            else if (d.imm == 1) d.op = INS_EBREAK;
+            d.imm &= 0xFFF; // CSR number / funct12 is unsigned
+            d.op = CSR_OPS[funct3];
+            if (funct3 == 0 && d.rd == 0 && d.rs1 == 0) {
+                if (d.imm == 0x000) d.op = INS_ECALL;
+                else if (d.imm == 0x001) d.op = INS_EBREAK;
+                else if (d.imm == 0x302) d.op = INS_MRET;
+            }
             break;
     }
     return d;
