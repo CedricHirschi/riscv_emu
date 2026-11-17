@@ -8,8 +8,8 @@ export BUILD
 
 CC      := cc
 AR      := gcc-ar # LTO objects need the plugin-aware archiver
-CFLAGS  := -O3 -Wall -Wextra -Werror -flto -MMD -MP -Iinc -Iinc/devices
-LDFLAGS := -O3 -flto
+CFLAGS  := -O3 -g -Wall -Wextra -Werror -flto -MMD -MP -Iinc -Iinc/devices
+LDFLAGS := -O3 -g -flto
 
 SRCS := $(wildcard src/*.c src/devices/*.c)
 OBJS := $(SRCS:%.c=$(BUILD)/obj/%.o)

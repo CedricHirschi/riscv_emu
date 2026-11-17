@@ -1,7 +1,6 @@
 #include "memory.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 _Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "host must be little-endian");
 
@@ -62,11 +61,11 @@ static uint8_t *memory_in(uint8_t *buf, uint32_t base, uint32_t size, uint32_t a
 
 memory_location_t memory_location(const memory_t *mem, uint32_t addr)
 {
-    if (memory_in(mem->rom, MEMORY_ROM_BASE, mem->rom_size, addr, 1)) {
-        return MEMORY_LOCATION_ROM;
-    }
     if (memory_in(mem->ram, MEMORY_RAM_BASE, mem->ram_size, addr, 1)) {
         return MEMORY_LOCATION_RAM;
+    }
+    if (memory_in(mem->rom, MEMORY_ROM_BASE, mem->rom_size, addr, 1)) {
+        return MEMORY_LOCATION_ROM;
     }
     if (addr - MEMORY_MMIO_BASE < MEMORY_MMIO_SIZE) {
         return MEMORY_LOCATION_MMIO;
@@ -77,11 +76,11 @@ memory_location_t memory_location(const memory_t *mem, uint32_t addr)
 uint8_t *memory_ptr(const memory_t *mem, uint32_t addr, uint32_t len, memory_location_t loc)
 {
     uint8_t *p = NULL;
-    if (loc & MEMORY_LOCATION_ROM) {
-        p = memory_in(mem->rom, MEMORY_ROM_BASE, mem->rom_size, addr, len);
-    }
-    if (!p && (loc & MEMORY_LOCATION_RAM)) {
+    if (loc & MEMORY_LOCATION_RAM) {
         p = memory_in(mem->ram, MEMORY_RAM_BASE, mem->ram_size, addr, len);
+    }
+    if (!p && (loc & MEMORY_LOCATION_ROM)) {
+        p = memory_in(mem->rom, MEMORY_ROM_BASE, mem->rom_size, addr, len);
     }
     return p;
 }
@@ -98,7 +97,14 @@ static memory_device_t *find_device(const memory_t *mem, uint32_t addr, uint32_t
 bool memory_read(const memory_t *mem, uint32_t addr, void *value, uint32_t len)
 {
     uint8_t *p = memory_ptr(mem, addr, len, MEMORY_LOCATION_MEM);
-    if (p) { memcpy(value, p, len); return true; }
+    if (p) {
+        switch (len) {
+            case 1: memcpy(value, p, 1); return true;
+            case 2: memcpy(value, p, 2); return true;
+            case 4: memcpy(value, p, 4); return true;
+            default: memcpy(value, p, len); return true;
+        }
+    }
 
     memory_device_t *d = len <= 4 ? find_device(mem, addr, len) : NULL;
     uint32_t v = 0;
@@ -110,40 +116,17 @@ bool memory_read(const memory_t *mem, uint32_t addr, void *value, uint32_t len)
 bool memory_write(memory_t *mem, uint32_t addr, const void *value, uint32_t len)
 {
     uint8_t *p = memory_ptr(mem, addr, len, MEMORY_LOCATION_RAM);
-    if (p) { memcpy(p, value, len); return true; }
+    if (p) {
+        switch (len) {
+            case 1: memcpy(p, value, 1); return true;
+            case 2: memcpy(p, value, 2); return true;
+            case 4: memcpy(p, value, 4); return true;
+            default: memcpy(p, value, len); return true;
+        }
+    }
 
     memory_device_t *d = len <= 4 ? find_device(mem, addr, len) : NULL;
     uint32_t v = 0;
     memcpy(&v, value, len);
     return d && d->write && d->write(d, addr - d->base, len, v);
-}
-
-bool memory_read_byte(const memory_t *mem, uint32_t addr, uint8_t *value)
-{
-    return memory_read(mem, addr, value, 1);
-}
-
-bool memory_write_byte(memory_t *mem, uint32_t addr, uint8_t value)
-{
-    return memory_write(mem, addr, &value, 1);
-}
-
-bool memory_read_half(const memory_t *mem, uint32_t addr, uint16_t *value)
-{
-    return memory_read(mem, addr, value, 2);
-}
-
-bool memory_write_half(memory_t *mem, uint32_t addr, uint16_t value)
-{
-    return memory_write(mem, addr, &value, 2);
-}
-
-bool memory_read_word(const memory_t *mem, uint32_t addr, uint32_t *value)
-{
-    return memory_read(mem, addr, value, 4);
-}
-
-bool memory_write_word(memory_t *mem, uint32_t addr, uint32_t value)
-{
-    return memory_write(mem, addr, &value, 4);
 }

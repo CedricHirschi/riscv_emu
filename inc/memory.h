@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 
 
 /**
@@ -193,7 +194,15 @@ bool memory_write(memory_t *mem, uint32_t addr, const void *value, uint32_t len)
  * @return true if the address is in bounds, false otherwise.
  *
  */
-bool memory_read_byte(const memory_t *mem, uint32_t addr, uint8_t *value);
+static inline bool memory_read_byte(const memory_t *mem, uint32_t addr, uint8_t *value)
+{
+    uint8_t *p = memory_ptr(mem, addr, 1, MEMORY_LOCATION_MEM);
+    if (p) {
+        memcpy(value, p, 1);
+        return true;
+    }
+    return memory_read(mem, addr, value, 1);
+}
 
 /**
  * @brief Writes a single byte to guest memory.
@@ -205,7 +214,15 @@ bool memory_read_byte(const memory_t *mem, uint32_t addr, uint8_t *value);
  * @return true if the address is in bounds, false otherwise.
  *
  */
-bool memory_write_byte(memory_t *mem, uint32_t addr, uint8_t value);
+static inline bool memory_write_byte(memory_t *mem, uint32_t addr, uint8_t value)
+{
+    uint8_t *p = memory_ptr(mem, addr, 1, MEMORY_LOCATION_RAM);
+    if (p) {
+        memcpy(p, &value, 1);
+        return true;
+    }
+    return memory_write(mem, addr, &value, 1);
+}
 
 /**
  * @brief Reads a 16-bit halfword from guest memory.
@@ -217,7 +234,15 @@ bool memory_write_byte(memory_t *mem, uint32_t addr, uint8_t value);
  * @return true if the access is in bounds, false otherwise.
  *
  */
-bool memory_read_half(const memory_t *mem, uint32_t addr, uint16_t *value);
+static inline bool memory_read_half(const memory_t *mem, uint32_t addr, uint16_t *value)
+{
+    uint8_t *p = memory_ptr(mem, addr, 2, MEMORY_LOCATION_MEM);
+    if (p) {
+        memcpy(value, p, 2);
+        return true;
+    }
+    return memory_read(mem, addr, value, 2);
+}
 
 /**
  * @brief Writes a 16-bit halfword to guest memory.
@@ -229,7 +254,15 @@ bool memory_read_half(const memory_t *mem, uint32_t addr, uint16_t *value);
  * @return true if the access is in bounds, false otherwise.
  *
  */
-bool memory_write_half(memory_t *mem, uint32_t addr, uint16_t value);
+static inline bool memory_write_half(memory_t *mem, uint32_t addr, uint16_t value)
+{
+    uint8_t *p = memory_ptr(mem, addr, 2, MEMORY_LOCATION_RAM);
+    if (p) {
+        memcpy(p, &value, 2);
+        return true;
+    }
+    return memory_write(mem, addr, &value, 2);
+}
 
 /**
  * @brief Reads a 32-bit word from guest memory.
@@ -241,7 +274,15 @@ bool memory_write_half(memory_t *mem, uint32_t addr, uint16_t value);
  * @return true if the access is in bounds, false otherwise.
  *
  */
-bool memory_read_word(const memory_t *mem, uint32_t addr, uint32_t *value);
+static inline bool memory_read_word(const memory_t *mem, uint32_t addr, uint32_t *value)
+{
+    uint8_t *p = memory_ptr(mem, addr, 4, MEMORY_LOCATION_MEM);
+    if (p) {
+        memcpy(value, p, 4);
+        return true;
+    }
+    return memory_read(mem, addr, value, 4);
+}
 
 /**
  * @brief Writes a 32-bit word to guest memory.
@@ -253,6 +294,14 @@ bool memory_read_word(const memory_t *mem, uint32_t addr, uint32_t *value);
  * @return true if the access is in bounds, false otherwise.
  *
  */
-bool memory_write_word(memory_t *mem, uint32_t addr, uint32_t value);
+static inline bool memory_write_word(memory_t *mem, uint32_t addr, uint32_t value)
+{
+    uint8_t *p = memory_ptr(mem, addr, 4, MEMORY_LOCATION_RAM);
+    if (p) {
+        memcpy(p, &value, 4);
+        return true;
+    }
+    return memory_write(mem, addr, &value, 4);
+}
 
 #endif // __MEMORY_H__
