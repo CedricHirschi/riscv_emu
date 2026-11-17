@@ -4,6 +4,8 @@
 #include "memory.h"
 #include "cpu.h"
 
+#include "device_uart.h"
+
 
 #define MAX_ITER 1000000000
 
@@ -24,6 +26,16 @@ int main(int argc, char *argv[]) {
         fclose(file);
         return 1;
     }
+
+    uart_state_t uart_state = { .fd = 1 }; // stdout
+    memory_device_t uart_dev = device_uart_init(0x10000000, &uart_state);
+    if (!memory_add_device(&mem, &uart_dev)) {
+        fprintf(stderr, "Failed to add UART device\n");
+        memory_free(&mem);
+        fclose(file);
+        return 1;
+    }
+
     uint32_t entry;
     if (!elf_read(file, &mem, &entry)) {
         fprintf(stderr, "Failed to parse ELF file\n");

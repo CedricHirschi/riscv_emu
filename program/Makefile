@@ -16,7 +16,7 @@ CFLAGS_NATIVE := -Os -ffunction-sections -fdata-sections -fno-common -Wall -Wext
 all: main.elf main.dump
 
 main.elf: main.c lib/print.c main.ld crt0.S
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter-out main.ld,$^) -Ilib
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter-out main.ld,$^) -Ilib -I..
 
 main.dump: main.elf
 	$(OBJDUMP) --visualize-jumps -D -s $< > $@

@@ -9,6 +9,10 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+#include "device_uart_regs.h"
+
+#define UART ((volatile uart_regs_t *)UART_BASE)
+
 const char hex_symbols[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
 /// @brief format number as hexadecimal digits
@@ -27,21 +31,14 @@ uint8_t format_hex32(char *buffer, uint32_t num) {
     return idx;
 }
 
-void puts(const char *buf, uint32_t len)
-{
-    register uint32_t a0 __asm__("a0") = 1;
-    register const char *a1 __asm__("a1") = buf;
-    register uint32_t a2 __asm__("a2") = len;
-    register uint32_t a7 __asm__("a7") = 64;
-
-    __asm__ volatile("ecall"
-        : "+r"(a0)
-        : "r"(a1), "r"(a2), "r"(a7)
-        : "memory");
+void putchar(char c) {
+    while (!(UART->status & UART_STATUS_READY)) {}
+    UART->tx = (uint8_t)c;
 }
 
-void putchar(char c) {
-    puts(&c, 1);
+void puts(const char *buf, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++) putchar(buf[i]);
 }
 
 void printf(const char *fmt, ...) {

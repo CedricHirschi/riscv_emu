@@ -1,6 +1,6 @@
 /**
  * @file print.h
- * @brief Minimal freestanding output routines using RISC-V write syscalls.
+ * @brief Minimal freestanding output routines using the UART device.
  *
  */
 
