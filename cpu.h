@@ -14,6 +14,20 @@
 #include "instruction.h"
 
 /**
+ * @brief RISC-V trap causes
+ * 
+ */
+typedef enum {
+    CAUSE_FETCH_MISALIGNED = 0,
+    CAUSE_FETCH_FAULT = 1,
+    CAUSE_ILLEGAL = 2,
+    CAUSE_BREAKPOINT = 3,
+    CAUSE_LOAD_FAULT = 5,
+    CAUSE_STORE_FAULT = 7,
+    CAUSE_ECALL_M = 11,
+} cpu_trap_cause_t;
+
+/**
  * @brief Represents the emulated RISC-V CPU state.
  *
  */

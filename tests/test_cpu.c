@@ -220,6 +220,189 @@ void test_rom_read_only() {
     assert(memory_read_word(&mem, 0, &got) && got == sw);
 }
 
+#define SYS(f3, rd, rs1, csr) I(0x73, f3, rd, rs1, csr)
+#define HANDLER 0x80u
+
+// reset() with a trap handler installed and MIE on, so trap entry is observable
+static void arm(uint32_t pc, uint32_t word) {
+    reset(pc, word);
+    cpu.csr.mtvec = HANDLER;
+    cpu.csr.mstatus = 0x8;
+}
+
+// Steps once and expects a trap: handler entered, trap CSRs set, MIE stacked, no register written
+static void step_expect_trap(uint32_t cause, uint32_t tval) {
+    uint32_t pc = cpu.pc;
+    register_file_t before = cpu.regs;
+    assert(cpu_step(&cpu, &mem) == STEP_OK);
+    assert(cpu.pc == HANDLER);
+    assert(cpu.csr.mepc == pc && cpu.csr.mcause == cause && cpu.csr.mtval == tval);
+    assert(cpu.csr.mstatus == 0x80); // MPIE = old MIE, MIE = 0
+    assert(memcmp(&before, &cpu.regs, sizeof before) == 0);
+}
+
+static void run_one(void) {
+    assert(cpu_step(&cpu, &mem) == STEP_OK);
+    assert(cpu.pc == 4);
+}
+
+void test_csr_ops() {
+    reset(0, SYS(1, 3, 1, 0x340)); // CSRRW x3, mscratch, x1
+    cpu.csr.mscratch = 5;
+    cpu.regs.arr[1] = 7;
+    run_one();
+    assert(cpu.regs.arr[3] == 5 && cpu.csr.mscratch == 7);
+
+    reset(0, SYS(2, 3, 1, 0x340)); // CSRRS sets bits
+    cpu.csr.mscratch = 0xF0;
+    cpu.regs.arr[1] = 0x0F;
+    run_one();
+    assert(cpu.regs.arr[3] == 0xF0 && cpu.csr.mscratch == 0xFF);
+
+    reset(0, SYS(3, 3, 1, 0x340)); // CSRRC clears bits
+    cpu.csr.mscratch = 0xFF;
+    cpu.regs.arr[1] = 0x0F;
+    run_one();
+    assert(cpu.regs.arr[3] == 0xFF && cpu.csr.mscratch == 0xF0);
+
+    reset(0, SYS(5, 3, 31, 0x340)); // CSRRWI: rs1 field is the value
+    run_one();
+    assert(cpu.regs.arr[3] == 0 && cpu.csr.mscratch == 31);
+
+    reset(0, SYS(6, 3, 0x11, 0x340)); // CSRRSI
+    cpu.csr.mscratch = 0x100;
+    run_one();
+    assert(cpu.csr.mscratch == 0x111);
+
+    reset(0, SYS(7, 3, 0x01, 0x340)); // CSRRCI
+    cpu.csr.mscratch = 0x111;
+    run_one();
+    assert(cpu.regs.arr[3] == 0x111 && cpu.csr.mscratch == 0x110);
+
+    reset(0, SYS(1, 0, 1, 0x340)); // CSRRW x0 still writes, x0 stays 0
+    cpu.regs.arr[1] = 9;
+    run_one();
+    assert(cpu.csr.mscratch == 9 && cpu.regs.arr[0] == 0);
+}
+
+void test_csr_registers() {
+    // Read-only CSRs can be read when nothing is written
+    reset(0, SYS(2, 3, 0, 0xF14)); // CSRRS x3, mhartid, x0
+    cpu.regs.arr[3] = 0xDEAD;
+    run_one();
+    assert(cpu.regs.arr[3] == 0);
+    reset(0, SYS(6, 3, 0, 0x301)); // CSRRSI x3, misa, 0
+    run_one();
+    assert(cpu.regs.arr[3] == 0x40001100u);
+
+    // WARL fields: only legal bits stick
+    reset(0, SYS(1, 0, 1, 0x300)); // mstatus: only MIE/MPIE writable, MPP reads as M
+    cpu.regs.arr[1] = 0xFFFFFFFFu;
+    run_one();
+    assert(cpu.csr.mstatus == 0x88);
+    reset(0, SYS(2, 3, 0, 0x300));
+    cpu.csr.mstatus = 0x88;
+    run_one();
+    assert(cpu.regs.arr[3] == 0x1888);
+
+    reset(0, SYS(1, 0, 1, 0x341)); // mepc is 4-byte aligned
+    cpu.regs.arr[1] = 0x103;
+    run_one();
+    assert(cpu.csr.mepc == 0x100);
+
+    reset(0, SYS(1, 0, 1, 0x305)); // mtvec: direct mode only
+    cpu.regs.arr[1] = 0x81;
+    run_one();
+    assert(cpu.csr.mtvec == 0x80);
+}
+
+void test_traps() {
+    arm(0, I(0x03, 2, 3, 1, 0)); // LW from the unmapped gap below RAM
+    cpu.regs.arr[1] = RAM - 4;
+    cpu.regs.arr[3] = 0xDEAD;
+    step_expect_trap(CAUSE_LOAD_FAULT, RAM - 4);
+
+    arm(0, I(0x03, 0, 3, 1, 0)); // LB too
+    cpu.regs.arr[1] = RAM_END;
+    step_expect_trap(CAUSE_LOAD_FAULT, RAM_END);
+
+    arm(0, S(2, 0, 2, 0x40)); // SW to ROM
+    step_expect_trap(CAUSE_STORE_FAULT, 0x40);
+
+    arm(0, 0x0000007F); // unknown opcode
+    step_expect_trap(CAUSE_ILLEGAL, 0x7F);
+
+    arm(0, SYS(1, 3, 1, 0x7C0)); // unknown CSR
+    step_expect_trap(CAUSE_ILLEGAL, SYS(1, 3, 1, 0x7C0));
+
+    arm(0, SYS(1, 3, 1, 0xF14)); // CSRRW to read-only mhartid
+    step_expect_trap(CAUSE_ILLEGAL, SYS(1, 3, 1, 0xF14));
+
+    arm(0, SYS(2, 3, 1, 0xF14)); // CSRRS with rs1 != x0 writes even if x1 == 0
+    step_expect_trap(CAUSE_ILLEGAL, SYS(2, 3, 1, 0xF14));
+
+    arm(16, 0x00100073); // EBREAK
+    step_expect_trap(CAUSE_BREAKPOINT, 16);
+
+    arm(16, 0x00000073); // ECALL goes to the handler, not the host, once mtvec is set
+    cpu.regs.abi.a7 = 93;
+    step_expect_trap(CAUSE_ECALL_M, 0);
+}
+
+void test_fetch_traps() {
+    arm(16, J(1, 6)); // JAL to a misaligned target faults on the jump, rd untouched
+    step_expect_trap(CAUSE_FETCH_MISALIGNED, 22);
+
+    arm(16, I(0x67, 0, 1, 1, 2)); // JALR x1, 2(x1)
+    cpu.regs.arr[1] = 0x100;
+    step_expect_trap(CAUSE_FETCH_MISALIGNED, 0x102);
+
+    arm(16, B(0, 1, 2, 6)); // BEQ taken to a misaligned target
+    step_expect_trap(CAUSE_FETCH_MISALIGNED, 22);
+
+    reset(16, B(0, 1, 2, 6)); // not taken: no fault
+    cpu.csr.mtvec = HANDLER;
+    cpu.regs.arr[1] = 1;
+    assert(cpu_step(&cpu, &mem) == STEP_OK && cpu.pc == 20);
+
+    arm(0, 0);
+    cpu.pc = 2; // misaligned pc
+    step_expect_trap(CAUSE_FETCH_MISALIGNED, 2);
+
+    arm(0, 0);
+    cpu.pc = RAM; // RAM is not executable
+    step_expect_trap(CAUSE_FETCH_FAULT, RAM);
+}
+
+void test_mret() {
+    reset(0, 0x30200073);
+    cpu.csr.mepc = 0x40;
+    cpu.csr.mstatus = 0x80; // MPIE = 1
+    assert(cpu_step(&cpu, &mem) == STEP_OK);
+    assert(cpu.pc == 0x40 && cpu.csr.mstatus == 0x88); // MIE = MPIE, MPIE = 1
+
+    reset(0, 0x30200073);
+    cpu.csr.mepc = 0x40;
+    assert(cpu_step(&cpu, &mem) == STEP_OK);
+    assert(cpu.csr.mstatus == 0x80); // MPIE = 0 restores MIE = 0
+}
+
+// EBREAK -> handler skips it (mepc += 4) -> MRET back to the next instruction
+void test_trap_round_trip() {
+    arm(0, 0x00100073);
+    uint32_t handler[] = {
+        SYS(2, 5, 0, 0x341),  // csrr t0, mepc
+        I(0x13, 0, 5, 5, 4),  // addi t0, t0, 4
+        SYS(1, 0, 5, 0x341),  // csrw mepc, t0
+        0x30200073,           // mret
+    };
+    memcpy(mem.rom + HANDLER, handler, sizeof handler);
+    for (int i = 0; i < 5; i++) assert(cpu_step(&cpu, &mem) == STEP_OK);
+    assert(cpu.pc == 4);
+    assert(cpu.csr.mcause == CAUSE_BREAKPOINT);
+    assert(cpu.csr.mstatus == 0x88); // MIE back on
+}
+
 
 int main() {
     assert(memory_init(&mem));
@@ -233,6 +416,12 @@ int main() {
     test_upper_and_jumps();
     test_system_and_errors();
     test_rom_read_only();
+    test_csr_ops();
+    test_csr_registers();
+    test_traps();
+    test_fetch_traps();
+    test_mret();
+    test_trap_round_trip();
     free(cpu.icache);
     memory_free(&mem);
     return 0;
