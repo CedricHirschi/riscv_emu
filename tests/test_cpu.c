@@ -14,16 +14,20 @@
 #define J(rd, imm) ((((uint32_t)(imm) >> 20) & 1) << 31 | (((uint32_t)(imm) >> 1) & 0x3FF) << 21 | (((uint32_t)(imm) >> 11) & 1) << 20 | \
                     (((uint32_t)(imm) >> 12) & 0xFF) << 12 | (rd) << 7 | 0x6F)
 
-#define MEM_SIZE 256
+#define RAM MEMORY_RAM_BASE
+#define RAM_END (MEMORY_RAM_BASE + MEMORY_RAM_SIZE)
+#define ROM_END (MEMORY_ROM_BASE + MEMORY_ROM_SIZE)
 
 static memory_t mem;
 static cpu_t cpu;
 
-// Fresh zeroed memory and decode cache, with word placed at pc
+// Fresh decode cache and the start of ROM/RAM zeroed, with word placed at pc if pc is in ROM
 static void reset(uint32_t pc, uint32_t word) {
     free(cpu.icache);
-    memset(mem.data, 0, MEM_SIZE);
-    memory_write_word(&mem, pc, word);
+    memset(mem.rom, 0, 256);
+    memset(mem.ram, 0, 256);
+    uint8_t *p = memory_ptr(&mem, pc, 4, MEMORY_LOCATION_ROM); // ROM is written like the loader does, not via stores
+    if (p) memcpy(p, &word, 4);
     assert(cpu_init(&cpu, &mem, pc));
 }
 
@@ -114,14 +118,22 @@ void test_loads() {
     };
     for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
         reset(0, I(0x03, cases[i].f3, 3, 1, -16));
-        memcpy(mem.data + 128, data, 4);
-        cpu.regs.arr[1] = 144;
+        memcpy(mem.ram + 128, data, 4);
+        cpu.regs.arr[1] = RAM + 144;
         assert(cpu_step(&cpu, &mem) == STEP_OK);
         assert(cpu.regs.arr[3] == cases[i].want);
     }
 
+    reset(0, I(0x03, 2, 3, 1, 0)); // LW from ROM, as for .rodata
+    memcpy(mem.rom + 128, data, 4);
+    cpu.regs.arr[1] = 128;
+    assert(cpu_step(&cpu, &mem) == STEP_OK && cpu.regs.arr[3] == 0x1234FF80u);
+
     reset(0, I(0x03, 2, 3, 1, 0));
-    cpu.regs.arr[1] = MEM_SIZE - 2;
+    cpu.regs.arr[1] = RAM_END - 2; // straddles the end of RAM
+    assert(cpu_step(&cpu, &mem) == STEP_ERROR);
+    reset(0, I(0x03, 2, 3, 1, 0));
+    cpu.regs.arr[1] = RAM - 4; // unmapped gap below RAM
     assert(cpu_step(&cpu, &mem) == STEP_ERROR);
     expect_error(0, I(0x03, 3, 3, 1, 0)); // no LD on RV32
 }
@@ -130,16 +142,16 @@ void test_stores() {
     uint32_t want[3] = { 0xDD, 0xCCDD, 0xAABBCCDD };
     for (uint32_t f3 = 0; f3 < 3; f3++) {
         reset(0, S(f3, 1, 2, -4));
-        cpu.regs.arr[1] = 132;
+        cpu.regs.arr[1] = RAM + 132;
         cpu.regs.arr[2] = 0xAABBCCDDu;
         assert(cpu_step(&cpu, &mem) == STEP_OK);
         uint32_t got = 0;
-        assert(memory_read_word(&mem, 128, &got));
+        assert(memory_read_word(&mem, RAM + 128, &got));
         assert(got == want[f3]);
     }
 
     reset(0, S(2, 1, 2, 0));
-    cpu.regs.arr[1] = MEM_SIZE;
+    cpu.regs.arr[1] = RAM_END;
     assert(cpu_step(&cpu, &mem) == STEP_ERROR);
 }
 
@@ -191,31 +203,26 @@ void test_system_and_errors() {
     expect_error(0, 0x00200073); // unknown SYSTEM
     expect_error(0, 0x0000007F); // unknown opcode
     expect_error(2, 0x00000013); // misaligned pc
-    expect_error(MEM_SIZE, 0);   // pc past end
+    expect_error(ROM_END, 0);    // pc past end of ROM
+    expect_error(RAM, 0);        // RAM is not executable
 }
 
-void test_self_modifying() {
-    uint32_t addi3 = I(0x13, 0, 3, 3, 1);  // x3 += 1
-    uint32_t addi4 = I(0x13, 0, 4, 4, 1);  // x4 += 1
-    uint32_t new3 = I(0x13, 0, 3, 3, 7);   // x3 += 7
-    uint32_t new4 = I(0x13, 0, 5, 4, 1);   // x5 = x4 + 1, differs from addi4 only in the low half
-    reset(0, addi3);
-    memory_write_word(&mem, 4, addi4);
-    memory_write_word(&mem, 8, S(2, 0, 2, 2)); // SW x2, 2(x0): straddles words 0 and 4
-    cpu.regs.arr[2] = (new3 >> 16) | (new4 << 16);
-
-    for (int i = 0; i < 3; i++) assert(cpu_step(&cpu, &mem) == STEP_OK);
-    assert(cpu.regs.arr[3] == 1 && cpu.regs.arr[4] == 1);
-
-    cpu.pc = 0; // rerun both words; stale decodes would give x3 == 2, x4 == 2
-    assert(cpu_step(&cpu, &mem) == STEP_OK);
-    assert(cpu_step(&cpu, &mem) == STEP_OK);
-    assert(cpu.regs.arr[3] == 8 && cpu.regs.arr[4] == 1 && cpu.regs.arr[5] == 2);
+// Code lives in ROM, so stores to it fail and the decoded instruction can never go stale
+void test_rom_read_only() {
+    uint32_t sw = S(2, 0, 2, 0); // SW x2, 0(x0): overwrite itself
+    for (uint32_t f3 = 0; f3 < 3; f3++) {
+        reset(0, S(f3, 0, 2, 0)); // SB/SH/SW to address 0
+        cpu.regs.arr[2] = 0xFFFFFFFFu;
+        assert(cpu_step(&cpu, &mem) == STEP_ERROR);
+        assert(cpu.pc == 0);
+    }
+    uint32_t got = 0;
+    assert(memory_read_word(&mem, 0, &got) && got == sw);
 }
 
 
 int main() {
-    assert(memory_init(&mem, MEM_SIZE));
+    assert(memory_init(&mem));
     test_r_type();
     test_m_ext();
     test_i_type();
@@ -225,7 +232,7 @@ int main() {
     test_branches();
     test_upper_and_jumps();
     test_system_and_errors();
-    test_self_modifying();
+    test_rom_read_only();
     free(cpu.icache);
     memory_free(&mem);
     return 0;

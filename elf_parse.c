@@ -156,16 +156,19 @@ bool elf_read(FILE *file, memory_t *mem, uint32_t *entry)
             free(phdr);
             return false;
         }
-        if ((uint64_t)va + memsz > mem->size) {
-            fprintf(stderr, "elf_read: program section %zu exceeds memory bounds (vaddr=%u, memsz=%u, mem_size=%zu)\n", i, va, memsz, mem->size);
+        
+        // Segments may target ROM or RAM; the loader writes ROM directly since the guest can't
+        uint8_t *dst = memory_ptr(mem, va, memsz, MEMORY_LOCATION_ROM | MEMORY_LOCATION_RAM);
+        if (!dst) {
+            fprintf(stderr, "elf_read: program section %zu outside ROM/RAM (vaddr=0x%08x, memsz=%u)\n", i, va, memsz);
             free(phdr);
             return false;
         }
 
         // Zero full memsz first so any trailing .bss (memsz > filesz) is zero-initialized
-        memset(mem->data + va, 0, memsz);
+        memset(dst, 0, memsz);
         fseek(file, phdr[i].offset, SEEK_SET);
-        if (fread(mem->data + va, 1, filesz, file) != filesz) {
+        if (fread(dst, 1, filesz, file) != filesz) {
             fprintf(stderr, "elf_read: failed to read program section %zu\n", i);
             free(phdr);
             return false;

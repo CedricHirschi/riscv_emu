@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     }
     
     memory_t mem;
-    if (!memory_init(&mem, 8192)) {
+    if (!memory_init(&mem)) {
         fprintf(stderr, "Failed to allocate memory\n");
         fclose(file);
         return 1;

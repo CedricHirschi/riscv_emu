@@ -1,26 +1,30 @@
 ENTRY(_start)
 
+/* Must match MEMORY_*_BASE / MEMORY_*_SIZE in memory.h */
+MEMORY {
+    ROM (rx)  : ORIGIN = 0x00000000, LENGTH = 0x00100000
+    RAM (rw)  : ORIGIN = 0x80000000, LENGTH = 0x20000000
+}
+
 PHDRS {
-    load PT_LOAD FLAGS(7);
+    text PT_LOAD FLAGS(5); /* R+X */
+    data PT_LOAD FLAGS(6); /* R+W */
 }
 
 SECTIONS {
-    . = 0;
-
     .text : {
         KEEP(*(.text.startup))
         *(.text .text.*)
-    } :load
+    } > ROM :text
 
-    .rodata : { *(.rodata .rodata.*) } :load
+    .rodata : { *(.rodata .rodata.* .srodata .srodata.*) } > ROM :text
 
-    . = ALIGN(16);
-    .bss (NOLOAD) : {
-        *(.bss .bss.*)
-        . = ALIGN(16);
-        . += 4096;
-        __stack_top = .;
-    } :load
+    /* The emulator loads segments straight to their vaddr, so .data needs no copy from ROM */
+    .data : { *(.data .data.* .sdata .sdata.*) } > RAM :data
+
+    .bss (NOLOAD) : { *(.bss .bss.* .sbss .sbss.*) } > RAM :data
+
+    __stack_top = ORIGIN(RAM) + LENGTH(RAM);
 
     /DISCARD/ : {
         *(.comment) *(.note*)

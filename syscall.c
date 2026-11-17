@@ -9,16 +9,18 @@ step_t syscall_handle(register_file_t *regs, memory_t *mem)
     switch (syscall) {
         case 64: { // write(fd=a0, buf=a1, count=a2)
             uint32_t fd = regs->abi.a0;
-            uint32_t buf = regs->abi.a1;
             uint32_t count = regs->abi.a2;
-            if ((uint64_t)buf + count > mem->size) {
+            uint8_t *buf = memory_ptr(mem, regs->abi.a1, count, MEMORY_LOCATION_MEM);
+
+            if (!buf) {
                 fprintf(stderr, "write syscall out of bounds\n");
                 return STEP_ERROR;
             }
-            if (write(fd, &mem->data[buf], count) < 0) {
+            if (write(fd, buf, count) < 0) {
                 perror("write failed");
                 return STEP_ERROR;
             }
+
             return STEP_OK;
         }
         case 93: // exit(code=a0)

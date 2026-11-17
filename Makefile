@@ -32,6 +32,7 @@ $(test_exes): %: %.c $(objects)
 
 clean:
 	rm -f $(test_exes) $(objects) $(deps) main
+	make -C program clean
 
 -include $(deps)
 

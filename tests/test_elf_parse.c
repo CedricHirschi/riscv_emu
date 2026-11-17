@@ -5,15 +5,15 @@
 
 
 int main() {
-    // Open and read "add12.elf"
-    FILE *file = fopen("tests/add12.elf", "rb");
+    // Load the sample program built from program/
+    FILE *file = fopen("program/main.elf", "rb");
     if (!file) {
-        perror("Failed to open add12.elf");
+        perror("Failed to open program/main.elf");
         return 1;
     }
     
     memory_t mem;
-    assert(memory_init(&mem, 256));
+    assert(memory_init(&mem));
     uint32_t entry;
     if (!elf_read(file, &mem, &entry)) {
         fprintf(stderr, "Failed to parse ELF file\n");
@@ -21,7 +21,8 @@ int main() {
         return 1;
     }
 
-    // Something was loaded at the entry point
+    // Something was loaded at the entry point, which must be executable ROM
+    assert(memory_location(&mem, entry) == MEMORY_LOCATION_ROM);
     uint32_t first;
     assert(memory_read_word(&mem, entry, &first));
     assert(first != 0);

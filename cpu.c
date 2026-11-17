@@ -74,16 +74,8 @@ static struct decoded decode(uint32_t word)
 
 bool cpu_init(cpu_t *cpu, const memory_t *mem, uint32_t pc)
 {
-    // Round up so a trailing partial word still has an icache slot for invalidation
-    *cpu = (cpu_t){ .pc = pc, .icache = calloc((mem->size + 3) / 4, sizeof(struct decoded)) };
+    *cpu = (cpu_t){ .pc = pc, .icache = calloc(mem->rom_size / 4, sizeof(struct decoded))};
     return cpu->icache != NULL;
-}
-
-// Invalidate first and last touched words (stores are <= 4 bytes, so at most two words)
-static void invalidate(cpu_t *cpu, uint32_t addr, uint32_t len)
-{
-    cpu->icache[addr >> 2].op = INS_UNDECODED;
-    cpu->icache[(addr + len - 1) >> 2].op = INS_UNDECODED;
 }
 
 step_t cpu_step(cpu_t *cpu, memory_t *mem)
@@ -95,12 +87,13 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
         fprintf(stderr, "Misaligned PC=0x%08x\n", pc);
         return STEP_ERROR;
     }
-    if (pc >> 2 >= mem->size / 4) {
-        fprintf(stderr, "Failed to read memory at PC=0x%08x\n", pc);
+    uint32_t off = pc - MEMORY_ROM_BASE;
+    if (off >= mem->rom_size) {
+        fprintf(stderr, "PC=0x%08x outside ROM\n", pc);
         return STEP_ERROR;
     }
 
-    struct decoded *d = &cpu->icache[pc >> 2];
+    struct decoded *d = &cpu->icache[off >> 2];
     if (d->op == INS_UNDECODED) {
         uint32_t word = 0;
         memory_read_word(mem, pc, &word);
@@ -160,15 +153,12 @@ step_t cpu_step(cpu_t *cpu, memory_t *mem)
 
         case INS_SB:
             if (!memory_write_byte(mem, addr, b & 0xFF)) goto write_failed;
-            invalidate(cpu, addr, 1);
             break;
         case INS_SH:
             if (!memory_write_half(mem, addr, b & 0xFFFF)) goto write_failed;
-            invalidate(cpu, addr, 2);
             break;
         case INS_SW:
             if (!memory_write_word(mem, addr, b)) goto write_failed;
-            invalidate(cpu, addr, 4);
             break;
 
         case INS_BEQ:  if (a == b) next = pc + d->imm; break;
