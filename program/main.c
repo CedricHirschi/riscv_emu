@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "lib/print.h"
+#include "print.h"
 
 #ifndef FIB_N
 #define FIB_N 35

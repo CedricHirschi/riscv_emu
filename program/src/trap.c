@@ -1,6 +1,6 @@
 #include "print.h"
 
-#include "device_exit.h"
+#include "device_exit_regs.h"
 
 #define EXIT ((volatile exit_regs_t *)EXIT_BASE)
 

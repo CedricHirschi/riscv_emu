@@ -1,7 +1,8 @@
 #!/bin/sh
-# End-to-end check of the guest trap handler in program/lib/trap.c:
+# End-to-end check of the guest trap handler in program/src/trap.c:
 # EBREAK is reported and resumed, then an unmapped load exits with 128 + 5.
-out=$(./main program/trap_test.elf 2>&1)
+# Usage: test_trap_program.sh <emulator> <trap_test.elf>
+out=$("$1" "$2" 2>&1)
 code=$?
 
 fail() { echo "FAIL: $1"; echo "$out"; exit 1; }

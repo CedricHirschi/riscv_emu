@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "lib/print.h"
+#include "print.h"
 
 // Exercises the guest trap handler: EBREAK must resume, a load fault must exit with 128 + cause
 int main(void)

@@ -1,10 +1,1 @@
-*.o
-*.d
-*.elf
-!tests/*.elf
-*.dump
-/main
-program/main_native
-tests/test_*
-!tests/test_*.c
-!tests/test_*.sh
+/build/

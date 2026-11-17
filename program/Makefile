@@ -1,9 +1,16 @@
-CC := riscv riscv32-unknown-elf-gcc
+# Guest programs: each <name>.c here becomes $(BUILD)/program/<name>.elf,
+# linked with the runtime in src/ and crt0.S.
+
+BUILD ?= $(abspath ../build)
+OUT   := $(BUILD)/program
+
+CC      := riscv riscv32-unknown-elf-gcc
 OBJDUMP := riscv riscv32-unknown-elf-objdump
 
 CFLAGS := -march=rv32im -mabi=ilp32 \
           -Os -ffreestanding -fno-builtin \
-          -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror
+          -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror \
+          -Iinc -I../inc/devices # device register layouts are shared with the emulator
 
 LDFLAGS := -nostdlib \
            -Wl,-T,main.ld \
@@ -11,15 +18,20 @@ LDFLAGS := -nostdlib \
            -Wl,--no-relax \
            -Wl,--build-id=none
 
-CFLAGS_NATIVE := -Os -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror
+RUNTIME  := $(wildcard src/*.c) crt0.S
+HEADERS  := $(wildcard inc/*.h) $(wildcard ../inc/devices/*_regs.h)
+PROGRAMS := $(patsubst %.c,$(OUT)/%,$(wildcard *.c))
 
-all: main.elf trap_test.elf main.dump
+all: $(PROGRAMS:=.elf) $(PROGRAMS:=.dump)
 
-%.elf: %.c lib/print.c lib/trap.c main.ld crt0.S
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter-out main.ld,$^) -Ilib -I..
+$(OUT)/%.elf: %.c $(RUNTIME) $(HEADERS) main.ld
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c %.S,$^)
 
-main.dump: main.elf
+$(OUT)/%.dump: $(OUT)/%.elf
 	$(OBJDUMP) --visualize-jumps -D -s $< > $@
 
 clean:
-	rm -f main.elf trap_test.elf main.dump
+	rm -rf $(OUT)
+
+.PHONY: all clean

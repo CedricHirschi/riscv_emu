@@ -18,31 +18,24 @@ A simple RISC-V (RV32IM) ELF emulator written in C.
 
 ## Building & Running
 
-Build the emulator and run the sample program (`program/main.elf`):
+All build output goes to `build/`. The root `Makefile` builds the emulator; `program/` and `tests/` have their own Makefiles that can be used with `make -C`:
 
 ```sh
-make
+make                 # build the emulator: build/main
+make -C program      # build the guest programs: build/program/*.elf
+make -C tests run    # build and run all tests (builds emulator and programs as needed)
+make clean           # remove build/
 ```
+
+Shortcuts from the root: `make run_main` runs `build/program/main.elf`, `make run_tests` runs the test suite.
 
 Run an arbitrary 32-bit RISC-V ELF binary:
 
 ```sh
-./main <elf_file>
+build/main <elf_file>
 ```
 
-Run the test suite:
-
-```sh
-make run_tests
-```
-
-Clean build artifacts:
-
-```sh
-make clean
-```
-
-> **Note:** Rebuilding `program/main.elf` requires a `riscv32-unknown-elf-gcc` toolchain (configured in `program/Makefile`).
+> **Note:** Building the guest programs requires a `riscv32-unknown-elf-gcc` toolchain (configured in `program/Makefile`).
 
 ## License
 

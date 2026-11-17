@@ -1,41 +1,46 @@
-sources := $(wildcard *.c)
-objects := $(patsubst %.c,%.o,$(filter-out main.c,$(sources)))
+# Emulator build. Guest programs and tests have their own Makefiles:
+#   make -C program        build guest ELFs
+#   make -C tests run      build and run the test suite
+# Everything is written to one build folder, shared with the sub-makes.
 
-tests := $(wildcard tests/*.c)
-test_exes := $(tests:.c=)
-deps := $(objects:.o=.d) $(test_exes:=.d) main.d
+BUILD ?= $(CURDIR)/build
+export BUILD
 
-CFLAGS := -O3 -Wall -Wextra -Werror -flto -MMD -MP -I.
+CC      := cc
+AR      := gcc-ar # LTO objects need the plugin-aware archiver
+CFLAGS  := -O3 -Wall -Wextra -Werror -flto -MMD -MP -Iinc -Iinc/devices
+LDFLAGS := -O3 -flto
 
-all: run_main
+SRCS := $(wildcard src/*.c src/devices/*.c)
+OBJS := $(SRCS:%.c=$(BUILD)/obj/%.o)
+LIB  := $(BUILD)/libriscvemu.a # everything but main(), linked by the tests too
+EMU  := $(BUILD)/main
 
-run_main: main program/main.elf
-	./main program/main.elf
+all: $(EMU)
 
-run_tests: $(test_exes) main program/main.elf
-	@for test in $(test_exes); do \
-		echo "Running $$test..."; \
-		./$$test || exit 1; \
-	done
-	@echo "Running tests/test_trap_program.sh..."
-	@./tests/test_trap_program.sh
+lib: $(LIB)
 
-program/main.elf:
-	$(MAKE) --no-print-directory -C program
+$(EMU): $(BUILD)/obj/main.o $(LIB)
+	$(CC) $(LDFLAGS) $^ -o $@
 
-main: main.c $(objects)
-	$(CC) $(CFLAGS) $< $(objects) -o $@
+$(LIB): $(OBJS)
+	@rm -f $@
+	$(AR) rcs $@ $^
 
-$(test_exes): %: %.c $(objects)
-	$(CC) $(CFLAGS) $< $(objects) -o $@
-
-%.o: %.c
+$(BUILD)/obj/%.o: %.c
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+run_program: $(EMU)
+	@$(MAKE) --no-print-directory -C program
+	$(EMU) $(BUILD)/program/main.elf
+
+run_tests:
+	@$(MAKE) --no-print-directory -C tests run
+
 clean:
-	rm -f $(test_exes) $(objects) $(deps) main
-	make -C program clean
+	rm -rf $(BUILD)
 
--include $(deps)
+-include $(OBJS:.o=.d) $(BUILD)/obj/main.d
 
-.PHONY: all clean run_tests run_main program/main.elf
+.PHONY: all lib run_program run_tests clean

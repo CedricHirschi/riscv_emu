@@ -6,9 +6,9 @@
 
 int main() {
     // Load the sample program built from program/
-    FILE *file = fopen("program/main.elf", "rb");
+    FILE *file = fopen(PROGRAM_DIR "/main.elf", "rb");
     if (!file) {
-        perror("Failed to open program/main.elf");
+        perror("Failed to open " PROGRAM_DIR "/main.elf");
         return 1;
     }
     
