@@ -13,13 +13,13 @@ LDFLAGS := -nostdlib \
 
 CFLAGS_NATIVE := -Os -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror
 
-all: main.elf main.dump
+all: main.elf trap_test.elf main.dump
 
-main.elf: main.c lib/print.c main.ld crt0.S
+%.elf: %.c lib/print.c lib/trap.c main.ld crt0.S
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter-out main.ld,$^) -Ilib -I..
 
 main.dump: main.elf
 	$(OBJDUMP) --visualize-jumps -D -s $< > $@
 
 clean:
-	rm -f main.elf main.dump
+	rm -f main.elf trap_test.elf main.dump

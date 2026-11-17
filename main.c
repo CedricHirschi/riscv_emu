@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     }
 
     uart_state_t uart_state = { .fd = 1 }; // stdout
-    memory_device_t uart_dev = device_uart_init(0x10000000, &uart_state);
+    memory_device_t uart_dev = device_uart_init(UART_BASE, &uart_state);
     if (!memory_add_device(&mem, &uart_dev)) {
         fprintf(stderr, "Failed to add UART device\n");
         memory_free(&mem);
@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("\n");
+    fflush(stdout);
 
     step_t r = STEP_OK;
     for (size_t i = 0; i < MAX_ITER && r == STEP_OK && !exit_state.exited; i++) {

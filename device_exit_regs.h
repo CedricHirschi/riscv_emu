@@ -1,13 +1,15 @@
 #ifndef __DEVICE_EXIT_REGS_H__
 #define __DEVICE_EXIT_REGS_H__
 
-#include <stdint.h>
+#define EXIT_BASE 0x10001000
 
-#define EXIT_BASE 0x10001000u
+#ifndef __ASSEMBLER__ // Wrapped to make sure this can be included in the assembly code as well
+#include <stdint.h>
 
 typedef struct {
     uint32_t code;     ///< +0x0 write-only: perform exit with this code
 } exit_regs_t;
+#endif
 
 #define EXIT_STATUS_READY 0x1u
 

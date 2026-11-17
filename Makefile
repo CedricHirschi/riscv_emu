@@ -12,11 +12,13 @@ all: run_main
 run_main: main program/main.elf
 	./main program/main.elf
 
-run_tests: $(test_exes) program/main.elf
+run_tests: $(test_exes) main program/main.elf
 	@for test in $(test_exes); do \
 		echo "Running $$test..."; \
 		./$$test || exit 1; \
 	done
+	@echo "Running tests/test_trap_program.sh..."
+	@./tests/test_trap_program.sh
 
 program/main.elf:
 	$(MAKE) --no-print-directory -C program
